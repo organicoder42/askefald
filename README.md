@@ -23,11 +23,12 @@ Works fully offline — all geometry, textures and audio are procedural (Tier B)
 | Key | Action |
 |---|---|
 | Click | grab mouse (pointer lock) |
-| W/A/S/D + mouse | fly camera |
-| Q / E | down / up |
-| Shift | fast |
+| W/A/S/D + mouse | walk Ellen (third person) |
+| Shift | brisk walk |
 | F3 | perf HUD |
-| G | look-dev tuning panel |
+| F8 | free-cam toggle (Q/E down/up, Shift fast) |
+| 1 / 2 | scene jump: look-dev / Act I street |
+| G | look-dev tuning panel (look-dev scene) |
 
 ## Status
 
@@ -35,7 +36,7 @@ Milestone build (see `DEVLOG.md`):
 
 - [x] M0 — bootstrap (engine loop, input, quality presets, perf HUD)
 - [x] M1 — rendering core + look-dev street
-- [ ] M2 — player & world kit
+- [x] M2 — player & world kit (Ellen + Jonas + Birk on the Act I street)
 - [ ] M3 — systems (meters, radio, dialogue, saves)
 - [ ] M4 — Act I + Interlude A
 - [ ] M5 — Act II
