@@ -65,6 +65,11 @@ export class Input {
     return out;
   }
 
+  /** Debug: hold a key down programmatically (headless walk tests). */
+  debugHold(code: string): void {
+    this.keys.add(code);
+  }
+
   /** Call at the END of each frame to clear one-frame state. */
   endFrame(): void {
     this.justPressedKeys.clear();

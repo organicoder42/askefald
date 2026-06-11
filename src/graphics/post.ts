@@ -50,6 +50,8 @@ export interface PostStack {
   setExposure(target: number, immediate?: boolean): void;
   setDofEnabled(enabled: boolean): void;
   applyQuality(q: QualitySettings): void;
+  /** Swap the god-rays light source on scene change (null removes rays). */
+  setGodRaysSource(mesh: THREE.Mesh | null): void;
   dispose(): void;
 }
 
@@ -91,25 +93,39 @@ export function createPostStack(engine: Engine, opts: PostStackOptions): PostSta
     modulationOffset: 0.4,
   });
 
-  let godRays: GodRaysEffect | null = null;
-  if (opts.godRaysSource) {
-    godRays = new GodRaysEffect(camera, opts.godRaysSource, {
-      density: 0.96,
-      decay: 0.92,
-      weight: 0.13,
-      exposure: 0.17,
-      samples: 48,
-      clampMax: 0.6,
-      blur: true,
-    });
-  }
+  // God rays: ONE persistent effect for the stack's lifetime. EffectPass
+  // .dispose() destroys its child effects, so the pass is never rebuilt;
+  // scenes swap the sun disc via the lightSource setter. When no scene
+  // provides a source, the effect points at a far-away proxy (SKIP blend)
+  // so it never samples a disposed scene mesh.
+  const proxySun = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 8),
+    new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
+  );
+  proxySun.position.set(0, -1e4, 0);
+  proxySun.frustumCulled = false;
+  const godRays = new GodRaysEffect(camera, proxySun, {
+    density: 0.96,
+    decay: 0.92,
+    weight: 0.13,
+    exposure: 0.17,
+    samples: 48,
+    clampMax: 0.6,
+    blur: true,
+  });
+  let godRaysActive = Boolean(opts.godRaysSource);
+  let godRaysAllowed = opts.quality.godRays;
+  const applyGodRaysBlend = (): void => {
+    godRays.blendMode.blendFunction =
+      godRaysActive && godRaysAllowed ? BlendFunction.SCREEN : BlendFunction.SKIP;
+  };
+  if (opts.godRaysSource) godRays.lightSource = opts.godRaysSource;
+  applyGodRaysBlend();
 
   // SMAA carries the CONVOLUTION attribute, as does ChromaticAberration —
   // pmndrs allows only one convolution effect per EffectPass, so CA lives
   // in the grade pass instead.
-  const mainEffects = godRays
-    ? new EffectPass(camera, smaa, godRays, bloom)
-    : new EffectPass(camera, smaa, bloom);
+  const mainEffects = new EffectPass(camera, smaa, godRays, bloom);
   composer.addPass(mainEffects);
 
   const dof = new DepthOfFieldEffect(camera, {
@@ -175,15 +191,22 @@ export function createPostStack(engine: Engine, opts: PostStackOptions): PostSta
     applyQuality(q: QualitySettings): void {
       n8ao.enabled = q.aoEnabled;
       n8ao.configuration.halfRes = q.aoHalfRes;
-      if (godRays) godRays.blendMode.blendFunction = q.godRays
-        ? BlendFunction.SCREEN
-        : BlendFunction.SKIP;
+      godRaysAllowed = q.godRays;
+      applyGodRaysBlend();
       dofAllowed = q.dofAllowed;
       if (!dofAllowed) dofPass.enabled = false;
     },
 
+    setGodRaysSource(mesh: THREE.Mesh | null): void {
+      godRays.lightSource = mesh ?? proxySun;
+      godRaysActive = mesh !== null;
+      applyGodRaysBlend();
+    },
+
     dispose(): void {
       composer.dispose();
+      proxySun.geometry.dispose();
+      (proxySun.material as THREE.Material).dispose();
     },
   };
 

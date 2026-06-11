@@ -24,10 +24,18 @@ export class FreeCam {
     private camera: THREE.PerspectiveCamera,
     private input: Input,
   ) {
-    // Adopt the camera's current orientation so enabling doesn't snap the view.
-    const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-    this.yaw = e.y;
-    this.pitch = e.x;
+    this.syncFromCamera();
+  }
+
+  /**
+   * Adopt the camera's current orientation so enabling (or a scene's
+   * authored framing) doesn't snap the view — call whenever the camera was
+   * posed by something else while the free-cam was disabled.
+   */
+  syncFromCamera(): void {
+    _euler.setFromQuaternion(this.camera.quaternion, 'YXZ');
+    this.yaw = _euler.y;
+    this.pitch = _euler.x;
   }
 
   update(dt: number): void {

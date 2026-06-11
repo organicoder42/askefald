@@ -978,6 +978,205 @@ export function makePaintedSign(lines: string[], opts?: { width?: number; height
   return tex;
 }
 
+/**
+ * Worn interior plank floor (candle flats): ~14 cm planks running along the
+ * tile's v axis, per-plank luminance/warm-hue jitter around #6b5b48, joint
+ * gaps, sparse knots, and walk-path sheen wear in the roughness. Tile ≈ 2 m.
+ */
+export function makeWoodFloor(seed = 101): PBRSet {
+  const key = `wood|${seed}`;
+  const hit = pbrCache.get(key);
+  if (hit) return hit;
+
+  const size = 1024;
+  const rng = mulberry32(seed);
+  const cols = 14; // 2 m / 14 ≈ 14.3 cm plank pitch
+  const colW = size / cols;
+  // Grain streaks elongated ALONG the plank (v axis): many periods across,
+  // few along. Sampled with a per-plank offset so neighbours never match.
+  const grainF = fbmField(512, 36, 5, 3, seed ^ 0x6f2b);
+  // Broad soft blobs: where high, the finish is scuffed smooth (walk paths).
+  const scuffF = fbmField(128, 3, 3, 3, seed ^ 0x31a9);
+
+  const albedo = makeCanvas(size);
+  const rough = makeCanvas(size);
+  const heightL = makeCanvas(size);
+  const aImg = albedo.ctx.createImageData(size, size);
+  const rImg = rough.ctx.createImageData(size, size);
+  const hImg = heightL.ctx.createImageData(size, size);
+  const aD = aImg.data;
+  const rD = rImg.data;
+  const hD = hImg.data;
+  const base = hexToRgb('#6b5b48');
+
+  for (let y = 0; y < size; y++) {
+    const v = y / size;
+    for (let x = 0; x < size; x++) {
+      const u = x / size;
+      const col = Math.min(cols - 1, Math.floor(x / colW));
+      const xin = x - col * colW;
+      const edgePx = Math.min(xin, colW - xin);
+      // Two ~1 m planks per column with a per-column butt-joint phase.
+      // Identity (col, k) is wrap-stable: the plank crossing the tile seam
+      // gets identical jitter on both sides.
+      const phase = hash2(col, 977, seed ^ 0x5d11) * 0.5;
+      const tv = (((v - phase) % 1) + 1) % 1;
+      const k = tv < 0.5 ? 0 : 1;
+      const tj = tv % 0.5;
+      const jointPx = Math.min(tj, 0.5 - tj) * size;
+      const p0 = hash2(col, k, seed ^ 0x77c1); // luminance jitter
+      const p1 = hash2(col, k, seed ^ 0x2bd7); // warm-hue jitter
+      const p2 = hash2(col, k, seed ^ 0x90ef); // sheen jitter
+      const grain = sampleTile(grainF, 512, u + p0 * 0.73, v + p1 * 0.37);
+      const scuff = sampleTile(scuffF, 128, u, v);
+      const speck = hash2(x, y, seed ^ 0xae53);
+      // Walk-path wear mask: smoothstep over the broad blob field.
+      const wt = Math.min(1, Math.max(0, (scuff - 0.52) / 0.2));
+      const wear = wt * wt * (3 - 2 * wt);
+      const gap = edgePx < 1.5 || jointPx < 1.1;
+      const warm = p1 - 0.5;
+      const lum = 1 + (p0 - 0.5) * 0.17 + (grain - 0.5) * 0.2 + (speck - 0.5) * 0.06 + wear * 0.05;
+      let rr = base[0] * lum + warm * 13;
+      let gg = base[1] * lum + warm * 3;
+      let bb = base[2] * lum - warm * 9;
+      let rv = 0.68 + (p2 - 0.5) * 0.1 + (grain - 0.5) * 0.08 - wear * 0.2;
+      let hv = 0.5 + (p0 - 0.5) * 0.2 + (grain - 0.5) * 0.12;
+      if (gap) {
+        // Dark joint gap, carved deep in the height so the normal pops.
+        rr *= 0.38;
+        gg *= 0.38;
+        bb *= 0.38;
+        rv = Math.min(1, rv + 0.18);
+        hv = 0.12;
+      }
+      const i = (y * size + x) * 4;
+      aD[i] = rr;
+      aD[i + 1] = gg;
+      aD[i + 2] = bb;
+      aD[i + 3] = 255;
+      const rb = Math.max(0, Math.min(1, rv)) * 255;
+      rD[i] = rb;
+      rD[i + 1] = rb;
+      rD[i + 2] = rb;
+      rD[i + 3] = 255;
+      const hb = Math.max(0, Math.min(1, hv)) * 255;
+      hD[i] = hb;
+      hD[i + 1] = hb;
+      hD[i + 2] = hb;
+      hD[i + 3] = 255;
+    }
+  }
+  albedo.ctx.putImageData(aImg, 0, 0);
+  rough.ctx.putImageData(rImg, 0, 0);
+  heightL.ctx.putImageData(hImg, 0, 0);
+
+  // Sparse knots: dark oval stretched along the grain + faint ring, dimpled
+  // in the height, polished in the roughness. Inset from the tile edge so
+  // the wrap stays seam-free.
+  const nKnots = 6 + Math.floor(rng() * 5);
+  for (let n = 0; n < nKnots; n++) {
+    const kx = 50 + rng() * (size - 100);
+    const ky = 50 + rng() * (size - 100);
+    const r = 4 + rng() * 6;
+    const g = albedo.ctx.createRadialGradient(kx, ky, 0, kx, ky, r * 1.7);
+    g.addColorStop(0, 'rgba(46,35,25,0.85)');
+    g.addColorStop(0.5, 'rgba(58,45,33,0.45)');
+    g.addColorStop(1, 'rgba(58,45,33,0)');
+    albedo.ctx.fillStyle = g;
+    albedo.ctx.beginPath();
+    albedo.ctx.ellipse(kx, ky, r, r * 1.7, 0, 0, Math.PI * 2);
+    albedo.ctx.fill();
+    albedo.ctx.strokeStyle = 'rgba(40,30,22,0.3)';
+    albedo.ctx.lineWidth = 1.2;
+    albedo.ctx.beginPath();
+    albedo.ctx.ellipse(kx, ky, r * 1.25, r * 2.1, 0, 0, Math.PI * 2);
+    albedo.ctx.stroke();
+    heightL.ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    heightL.ctx.beginPath();
+    heightL.ctx.ellipse(kx, ky, r * 0.8, r * 1.4, 0, 0, Math.PI * 2);
+    heightL.ctx.fill();
+    rough.ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    rough.ctx.beginPath();
+    rough.ctx.ellipse(kx, ky, r, r * 1.7, 0, 0, Math.PI * 2);
+    rough.ctx.fill();
+  }
+
+  const set: PBRSet = {
+    map: layerTexture(albedo, true),
+    roughnessMap: layerTexture(rough, false),
+    normalMap: heightToNormal(heightL, 0.55),
+  };
+  pbrCache.set(key, set);
+  return set;
+}
+
+/**
+ * Interior plaster: the calmer cousin of the façade — fine grain, very
+ * subtle blotch, faint darkening at the bottom (skirting grime). NO streaks;
+ * rain never reaches in here. Tile ≈ 3 m.
+ */
+export function makeInteriorPlaster(baseColor: string, seed = 113): PBRSet {
+  const key = `intplaster|${baseColor}|${seed}`;
+  const hit = pbrCache.get(key);
+  if (hit) return hit;
+
+  const size = 512;
+  const blotchF = fbmField(256, 4, 4, 4, seed ^ 0x44d1);
+  const grainF = fbmField(512, 40, 40, 3, seed ^ 0x18b3);
+
+  const albedo = makeCanvas(size);
+  const rough = makeCanvas(size);
+  const heightL = makeCanvas(size);
+  const aImg = albedo.ctx.createImageData(size, size);
+  const rImg = rough.ctx.createImageData(size, size);
+  const hImg = heightL.ctx.createImageData(size, size);
+  const aD = aImg.data;
+  const rD = rImg.data;
+  const hD = hImg.data;
+  const base = hexToRgb(baseColor);
+
+  for (let y = 0; y < size; y++) {
+    const v = y / size;
+    // CanvasTexture flipY: the canvas BOTTOM rows land at uv v≈0, i.e. the
+    // floor line — that is where the skirting grime belongs.
+    const b = Math.max(0, (y / size - 0.86) / 0.14);
+    for (let x = 0; x < size; x++) {
+      const u = x / size;
+      const blotch = sampleTile(blotchF, 256, u, v);
+      const grain = sampleTile(grainF, 512, u, v);
+      const speck = hash2(x, y, seed ^ 0x7e39);
+      const grime = b * b * (0.7 + 0.3 * blotch);
+      const lum = (1 + (blotch - 0.5) * 0.045 + (grain - 0.5) * 0.05 + (speck - 0.5) * 0.035) * (1 - grime * 0.13);
+      const i = (y * size + x) * 4;
+      aD[i] = base[0] * lum;
+      aD[i + 1] = base[1] * lum;
+      aD[i + 2] = base[2] * lum;
+      aD[i + 3] = 255;
+      const rv = (0.84 + (grain - 0.5) * 0.16 + grime * 0.06) * 255;
+      rD[i] = rv;
+      rD[i + 1] = rv;
+      rD[i + 2] = rv;
+      rD[i + 3] = 255;
+      const hv = (0.5 + (grain - 0.5) * 0.2 + (blotch - 0.5) * 0.1 + (speck - 0.5) * 0.04) * 255;
+      hD[i] = hv;
+      hD[i + 1] = hv;
+      hD[i + 2] = hv;
+      hD[i + 3] = 255;
+    }
+  }
+  albedo.ctx.putImageData(aImg, 0, 0);
+  rough.ctx.putImageData(rImg, 0, 0);
+  heightL.ctx.putImageData(hImg, 0, 0);
+
+  const set: PBRSet = {
+    map: layerTexture(albedo, true),
+    roughnessMap: layerTexture(rough, false),
+    normalMap: heightToNormal(heightL, 0.3),
+  };
+  pbrCache.set(key, set);
+  return set;
+}
+
 /** Dispose every texture created by this module (scene teardown). */
 export function disposeAllGeneratedTextures(): void {
   for (const tex of registry) tex.dispose();

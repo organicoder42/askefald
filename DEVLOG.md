@@ -66,6 +66,53 @@
   - Plaster blotch contrast cut ~60% (camo-patch read); wheels lifted off
     pure black.
 - Verified `npm run build` (tsc strict + vite) — 331 kB gzip, no assets.
+
+## M2 — Player & world kit (in progress)
+
+- Collision is deliberately 2D (`ColliderWorld`): a moving circle against
+  yaw-rotated boxes in XZ plus a sampled ground-height function (road 0,
+  sidewalks/interiors +0.13, smooth curb ramps). The game has no jumping,
+  no stacking, no ragdolls — full 3D physics buys nothing here (§10.1).
+- Yaw convention pinned project-wide after an M2 false start: facing =
+  (sin yaw, 0, cos yaw); actor groups face local +Z. Player spawn heading π
+  = down-street (−Z).
+- Tier-B characters are SEGMENTED joint hierarchies (Groups as bones with
+  meshes), not SkinnedMesh: with everyone in hooded coats the joints hide
+  under cloth silhouettes, the pose math stays trivial and allocation-free,
+  and Tier-A glTF skinning can replace the rig without touching callers
+  (same setLocomotion/update/lookAt contract). Foot-slide rule: gait phase
+  advances by distance travelled, never time.
+- Scene manager wipes engine.scene between scenes and the god-rays source
+  is swapped via post.setGodRaysSource (GodRaysEffect captures its mesh at
+  construction, so the pass is rebuilt in place).
+- Exposure adaptation beat: candle flat interior targets exposure 1.35 vs
+  act exterior 0.92, trigger zone at the threshold, existing ~2 s lerp does
+  the "eyes adjusting" (§6.8).
+- Headless walk-testing: `?walk` debug-holds KeyW so virtual-time
+  screenshots capture mid-stride poses with followers trailing; `?spawn=`
+  repositions the player (exposure-trigger verification).
+- 7-angle code review (line-scan, removed-behavior, cross-file, reuse,
+  simplification, efficiency, altitude/lifecycle) caught and fixed:
+  - collision.ts world→local rotation was the transpose of the correct
+    inverse — every yawed collider (angled cars, the sign, flat walls)
+    was mirrored vs its visual. Convention now documented in the file.
+  - Right-side lamp colliders registered at negated z (visible posts
+    walk-through, invisible posts elsewhere).
+  - post.setGodRaysSource rebuilt the EffectPass via dispose(), which
+    destroys SHARED child effects (SMAA/bloom render targets). Rebuilt
+    around ONE persistent GodRaysEffect with a settable lightSource and
+    an internal far-away proxy when no scene provides a sun.
+  - Candle flicker lerp weights were swapped (9 Hz popping).
+  - Quality switches now reach scenes (GameScene.applyQuality → shadow
+    map size + ash density); FreeCam re-syncs from the camera on enable;
+    camera boom probes use a 0.6 m span so the gennemgang arch doesn't
+    yank the camera in.
+- Deferred to M3 housekeeping: consolidate mulberry32 (6 copies),
+  dampAngle (4), applyPBR (3) into shared modules; a TriggerZone
+  abstraction for interior exposure beats; generalize per-scene
+  god-rays/player glue onto GameScene. Draw calls 304 on the street —
+  segmented actors cost ~17 draws each; Tier-A skinned meshes (1 draw)
+  are the planned recovery.
 - Deferred: depth-buffer soft particles (reading the depth texture of the
   buffer being rendered into is a feedback hazard with the pmndrs composer —
   needs a depth-copy pass; quality flag `softParticles` reserved). Radial
