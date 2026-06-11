@@ -78,10 +78,12 @@ export function createPostStack(engine: Engine, opts: PostStackOptions): PostSta
   composer.addPass(n8ao);
 
   const smaa = new SMAAEffect();
+  // Restraint (§6.8): the askesol must be the single brightest SHAPE, not
+  // the centre of a frame-wide blowout — high threshold, low intensity.
   const bloom = new BloomEffect({
     mipmapBlur: true,
-    luminanceThreshold: 0.8,
-    intensity: 0.35,
+    luminanceThreshold: 0.95,
+    intensity: 0.22,
   });
   const chromaticAberration = new ChromaticAberrationEffect({
     offset: new THREE.Vector2(0.0006, 0.0006),
@@ -94,10 +96,10 @@ export function createPostStack(engine: Engine, opts: PostStackOptions): PostSta
     godRays = new GodRaysEffect(camera, opts.godRaysSource, {
       density: 0.96,
       decay: 0.92,
-      weight: 0.22,
-      exposure: 0.28,
+      weight: 0.13,
+      exposure: 0.17,
       samples: 48,
-      clampMax: 0.95,
+      clampMax: 0.6,
       blur: true,
     });
   }

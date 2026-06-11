@@ -37,8 +37,10 @@ export const worldUniforms = {
   uHeightFogOffset: { value: 0.0 },
   uFogNoiseAmount: { value: 0.3 },
   // Ash
-  uAshLevel: { value: 0.62 },
-  uAshColor: { value: new THREE.Color(PALETTE.aske) },
+  uAshLevel: { value: 0.78 },
+  // Slightly above the palette token: the blanket must read as pale powder
+  // against asphalt, and lighting always lands it a touch darker on screen.
+  uAshColor: { value: new THREE.Color('#a6a8a5') },
   uAshNoiseScale: { value: 0.55 },
 };
 

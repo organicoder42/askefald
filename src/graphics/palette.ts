@@ -91,9 +91,9 @@ export const ACT_CONFIGS: Record<ActId, ActLookConfig> = {
   act1: {
     id: 'act1',
     exposure: 0.92,
-    // Elevation/azimuth frame the disc just above the street's vanishing
-    // point from the spawn camera (roofline sits at ~7° from eye height).
-    sun: { elevationDeg: 10, azimuthDeg: 8, intensity: 2.8, color: '#d8dde2' },
+    // The askesol sits IN the street gap at the vanishing point (canyon
+    // half-angle from the spawn camera ≈ ±3°), low contre-jour backlight.
+    sun: { elevationDeg: 6, azimuthDeg: 2, intensity: 2.8, color: '#d8dde2' },
     // Overcast daylight is ambient-dominated: the hemisphere carries the
     // scene, the low sun only rims and casts the long soft shadows.
     hemi: { skyColor: '#5C6B7A', groundColor: '#3b4046', intensity: 1.5 },
@@ -115,7 +115,7 @@ export const ACT_CONFIGS: Record<ActId, ActLookConfig> = {
       cloudAmount: 0.75,
       cloudScale: 1.0,
     },
-    ash: { level: 0.62, count: 40000, fallSpeed: 0.55, wind: [-0.5, 0, 0.15], storm: 0 },
+    ash: { level: 0.78, count: 40000, fallSpeed: 0.55, wind: [-0.5, 0, 0.15], storm: 0 },
     grade: {
       shadowTint: '#5C6B7A',
       highlightTint: '#d9dde0',

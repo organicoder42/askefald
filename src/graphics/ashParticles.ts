@@ -131,12 +131,16 @@ void main() {
   // EXACTLY the world-material fog (shared uniforms + shared GLSL).
   float fogF = askFogFactor( vWorldPos, vViewDist, uCamPos, uTime );
 
-  vec3 flake = vec3( 0.72, 0.73, 0.72 ) * vBright;
+  // Ash-grey, not snow-white — flakes must never outshine the sky behind.
+  vec3 flake = vec3( 0.58, 0.59, 0.58 ) * vBright;
   vec3 color = mix( flake, uFogColor, fogF );
 
   // Dissolve into fog with distance; vanish right at the lens so flakes
   // never fill the screen.
-  float alpha = 0.55 * radial * ( 1.0 - fogF * 0.85 );
+  float alpha = 0.5 * radial * ( 1.0 - fogF );
+  // Flakes dissolve before the fog wall does — visible streaks of falling
+  // ash against fully fogged sky read as sprite overlays.
+  alpha *= 1.0 - smoothstep( 40.0, 70.0, vViewDist );
   alpha *= smoothstep( 0.15, 0.8, vViewDist );
   if ( alpha < 0.004 ) discard;
 
@@ -167,7 +171,9 @@ export class AshParticles {
       seeds[i * 3 + 0] = Math.random();
       seeds[i * 3 + 1] = Math.random();
       seeds[i * 3 + 2] = Math.random();
-      rand[i * 4 + 0] = 0.5 + Math.random(); // size 0.5..1.5
+      // Wide variance, biased small: a few big near-camera flakes against a
+      // mass of fine dust reads as tumbling ash, not uniform snow.
+      rand[i * 4 + 0] = 0.4 + Math.pow(Math.random(), 1.8) * 1.8; // size 0.4..2.2
       rand[i * 4 + 1] = Math.random(); // rotation phase
       rand[i * 4 + 2] = Math.random(); // sway phase
       rand[i * 4 + 3] = 0.8 + Math.random() * 0.4; // brightness 0.8..1.2

@@ -500,7 +500,9 @@ export function makePlasterFacade(baseColor: string, seed = 37): PBRSet {
       const blotch = sampleTile(blotchF, 256, u, v);
       const grain = sampleTile(grainF, 512, u, v);
       const speck = hash2(x, y, seed ^ 0xb3c9);
-      const lum = 1 + (blotch - 0.5) * 0.12 + (grain - 0.5) * 0.07 + (speck - 0.5) * 0.05;
+      // Blotch contrast stays low: at street distance high-contrast patches
+      // read as camo noise, not weathering.
+      const lum = 1 + (blotch - 0.5) * 0.05 + (grain - 0.5) * 0.05 + (speck - 0.5) * 0.04;
       const i = (y * size + x) * 4;
       aD[i] = base[0] * lum;
       aD[i + 1] = base[1] * lum;

@@ -20,8 +20,6 @@ const SHADOW_EXTENT = 42;
 const SUN_DISTANCE = 180;
 
 // followTarget scratch — zero per-frame allocations.
-const _lightMat = new THREE.Matrix4();
-const _lightMatInv = new THREE.Matrix4();
 const _origin = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _snapped = new THREE.Vector3();
@@ -31,6 +29,12 @@ export class SunRig {
   readonly hemi: THREE.HemisphereLight;
   readonly group: THREE.Group;
   readonly sunDir = new THREE.Vector3(0, -1, 0);
+
+  // Light-space basis cache, per instance: rebuilt by followTarget only
+  // when sunDir changes (NaN seed forces the first build).
+  private readonly cachedSunDir = new THREE.Vector3(NaN, NaN, NaN);
+  private readonly lightMat = new THREE.Matrix4();
+  private readonly lightMatInv = new THREE.Matrix4();
 
   constructor(shadowMapSize = 4096) {
     this.group = new THREE.Group();
@@ -107,10 +111,17 @@ export class SunRig {
     const texel = (SHADOW_EXTENT * 2) / this.sun.shadow.mapSize.x;
 
     // Light-space basis looking down sunDir (guard near-vertical sun).
-    _up.set(0, 1, 0);
-    if (Math.abs(this.sunDir.y) > 0.98) _up.set(0, 0, 1);
-    _lightMat.lookAt(_origin.set(0, 0, 0), this.sunDir, _up);
-    _lightMatInv.copy(_lightMat).invert();
+    // Rebuilt only when the direction changes (applyConfig / GUI) — the
+    // basis is pure rotation, so transpose doubles as the inverse.
+    if (!this.cachedSunDir.equals(this.sunDir)) {
+      _up.set(0, 1, 0);
+      if (Math.abs(this.sunDir.y) > 0.98) _up.set(0, 0, 1);
+      this.lightMat.lookAt(_origin.set(0, 0, 0), this.sunDir, _up);
+      this.lightMatInv.copy(this.lightMat).transpose();
+      this.cachedSunDir.copy(this.sunDir);
+    }
+    const _lightMat = this.lightMat;
+    const _lightMatInv = this.lightMatInv;
 
     _snapped.copy(target).applyMatrix4(_lightMatInv);
     _snapped.x = Math.round(_snapped.x / texel) * texel;

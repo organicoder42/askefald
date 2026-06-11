@@ -441,12 +441,13 @@ export function buildFacadeBlock(params: FacadeParams): THREE.Group {
 
   const flickerMats: THREE.MeshStandardMaterial[] = [];
   if (candleGeos.length > 0) {
-    // Deep amber, modest intensity: pushed brighter, AgX desaturates the
-    // candles to white and they read as electric light.
+    // The hue must SURVIVE tone mapping: above ~1.3 intensity AgX
+    // desaturates candle amber to electric white. Target on-screen pixel
+    // ≈ rgb(215,150,70).
     const candleMat = new THREE.MeshStandardMaterial({
       color: '#1a1107',
-      emissive: '#b5701f',
-      emissiveIntensity: 1.0,
+      emissive: '#E8A23C',
+      emissiveIntensity: 0.7,
       roughness: 1.0,
       metalness: 0.0,
     });
@@ -526,7 +527,7 @@ export function buildStreetGround(length: number, roadWidth: number, sidewalkWid
   roadGeo.rotateX(-Math.PI / 2);
   const roadMat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0.0 });
   applyPBR(roadMat, makeAsphalt(11));
-  patchWorldMaterial(roadMat, { ashAmount: 1.1 });
+  patchWorldMaterial(roadMat, { ashAmount: 1.7 });
   const road = new THREE.Mesh(roadGeo, roadMat);
   road.name = 'road';
   road.receiveShadow = true;
@@ -542,7 +543,7 @@ export function buildStreetGround(length: number, roadWidth: number, sidewalkWid
     roughness: 0.82,
     metalness: 0.0,
   });
-  patchWorldMaterial(curbMat, { ashAmount: 1.1 });
+  patchWorldMaterial(curbMat, { ashAmount: 1.7 });
   const curbs = new THREE.Mesh(mergeInto(curbGeos), curbMat);
   curbs.name = 'curbs';
   curbs.castShadow = true;
@@ -562,7 +563,7 @@ export function buildStreetGround(length: number, roadWidth: number, sidewalkWid
   }
   const walkMat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0.0 });
   applyPBR(walkMat, makeSidewalk(23));
-  patchWorldMaterial(walkMat, { ashAmount: 1.1 });
+  patchWorldMaterial(walkMat, { ashAmount: 1.7 });
   const walks = new THREE.Mesh(mergeInto(walkGeos), walkMat);
   walks.name = 'sidewalks';
   walks.receiveShadow = true;
@@ -695,7 +696,7 @@ export function updateCityFlicker(blocks: THREE.Group[], elapsed: number): void 
     const slow = smoothNoise1(elapsed * 1.2 + phase * 1.71);
     // Occasional deeper dips: the slow noise gates intensity down to ~55%.
     const dip = 0.55 + 0.45 * sstep(slow, 0.18, 0.45);
-    const intensity = (0.85 + 0.45 * fast) * dip;
+    const intensity = (0.6 + 0.3 * fast) * dip;
     for (let m = 0; m < mats.length; m++) {
       mats[m].emissiveIntensity = intensity;
     }

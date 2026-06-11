@@ -137,12 +137,15 @@ export function buildLookdevScene(engine: Engine): LookdevScene {
   // across the street; one brick per side; shopfronts + candle-lit windows
   // only on the two blocks nearest the camera (z ≈ +10..+30). ----
   const blocks: THREE.Group[] = [];
+  // Lit windows live in the MID-DISTANCE blocks (z ≈ −5..−50): the spawn
+  // camera sits at z=28, so candles on the first block would be beside or
+  // behind it, and the eye-path should run candle → candle → askesol.
   placeFacadeRow(
     -1,
     [
-      { bays: 8, floors: 5, style: 'plaster', tint: '#8a8068', seed: 11, shopfront: true, litWindows: 3 },
-      { bays: 10, floors: 5, style: 'brick', tint: '#6e5d52', seed: 12 },
-      { bays: 7, floors: 5, style: 'plaster', tint: '#767a70', seed: 13 },
+      { bays: 8, floors: 5, style: 'plaster', tint: '#8a8068', seed: 11, shopfront: true },
+      { bays: 10, floors: 5, style: 'brick', tint: '#6e5d52', seed: 12, litWindows: 2 },
+      { bays: 7, floors: 5, style: 'plaster', tint: '#767a70', seed: 13, litWindows: 2 },
     ],
     32,
     group,
@@ -151,9 +154,9 @@ export function buildLookdevScene(engine: Engine): LookdevScene {
   placeFacadeRow(
     1,
     [
-      { bays: 9, floors: 5, style: 'plaster', tint: '#87726a', seed: 21, shopfront: true, litWindows: 2 },
-      { bays: 7, floors: 5, style: 'plaster', tint: '#767a70', seed: 22 },
-      { bays: 10, floors: 5, style: 'brick', tint: '#6e5d52', seed: 23 },
+      { bays: 9, floors: 5, style: 'plaster', tint: '#87726a', seed: 21, shopfront: true },
+      { bays: 7, floors: 5, style: 'plaster', tint: '#767a70', seed: 22, litWindows: 2 },
+      { bays: 10, floors: 5, style: 'brick', tint: '#6e5d52', seed: 23, litWindows: 1 },
     ],
     36,
     group,

@@ -381,8 +381,10 @@ export function buildAbandonedCars(placements: CarPlacement[], seed?: number): T
   // Wheels — ONE InstancedMesh for all 4×N, axis along Z.
   const wheelGeometry = new THREE.CylinderGeometry(0.31, 0.31, 0.2, 12);
   wheelGeometry.rotateX(Math.PI / 2);
-  const rubber = new THREE.MeshStandardMaterial({ color: '#141516', roughness: 0.95, metalness: 0 });
-  patchWorldMaterial(rubber, { ashAmount: 0.4 });
+  // Not pitch black: tyres in this light sit just below the body's shadowed
+  // flank, and dead-black wheels read as detached rectangles.
+  const rubber = new THREE.MeshStandardMaterial({ color: '#2c2f32', roughness: 0.95, metalness: 0 });
+  patchWorldMaterial(rubber, { ashAmount: 0.6 });
   const wheels = new THREE.InstancedMesh(wheelGeometry, rubber, 4 * n);
   wheels.castShadow = true;
   wheels.receiveShadow = true;
