@@ -1,8 +1,10 @@
-import * as THREE from 'three';
+import type { Engine } from '../core/engine';
 
 /**
  * Perf HUD (F3): fps, frame ms, draw calls, triangles, GPU resource counts.
- * Budgets (§6.9): ≤300 draw calls, ≤1.5M tris on High.
+ * Budgets (§6.9): ≤300 draw calls, ≤1.5M tris on High. Reads whole-frame
+ * totals from engine.frameStats (renderer.info is per-pass under the
+ * post composer).
  */
 export class PerfHud {
   private el: HTMLDivElement;
@@ -12,7 +14,7 @@ export class PerfHud {
   private fps = 0;
   private ms = 0;
 
-  constructor(private renderer: THREE.WebGLRenderer) {
+  constructor(private engine: Engine) {
     this.el = document.createElement('div');
     this.el.style.cssText = [
       'position:fixed',
@@ -53,16 +55,15 @@ export class PerfHud {
   }
 
   private redraw(): void {
-    const info = this.renderer.info;
-    const calls = info.render.calls;
-    const tris = info.render.triangles;
+    const info = this.engine.renderer.info;
+    const { calls, triangles } = this.engine.frameStats;
     const callsWarn = calls > 300 ? ' !' : '';
-    const trisWarn = tris > 1_500_000 ? ' !' : '';
+    const trisWarn = triangles > 1_500_000 ? ' !' : '';
     this.el.textContent = [
       `fps    ${this.fps.toFixed(0)}`,
       `ms     ${this.ms.toFixed(2)}`,
       `calls  ${calls}${callsWarn}`,
-      `tris   ${(tris / 1000).toFixed(0)}k${trisWarn}`,
+      `tris   ${(triangles / 1000).toFixed(0)}k${trisWarn}`,
       `geom   ${info.memory.geometries}`,
       `tex    ${info.memory.textures}`,
       `progs  ${info.programs?.length ?? 0}`,

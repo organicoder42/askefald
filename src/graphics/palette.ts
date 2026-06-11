@@ -90,13 +90,17 @@ export const ACT_CONFIGS: Record<ActId, ActLookConfig> = {
   // Act I — BYEN. Blue-grey twilight at noon; the askesol a pale disc at 8°.
   act1: {
     id: 'act1',
-    exposure: 0.85,
-    sun: { elevationDeg: 8, azimuthDeg: 12, intensity: 2.4, color: '#d8dde2' },
-    hemi: { skyColor: '#5C6B7A', groundColor: '#3b4046', intensity: 0.55 },
+    exposure: 0.92,
+    // Elevation/azimuth frame the disc just above the street's vanishing
+    // point from the spawn camera (roofline sits at ~7° from eye height).
+    sun: { elevationDeg: 10, azimuthDeg: 8, intensity: 2.8, color: '#d8dde2' },
+    // Overcast daylight is ambient-dominated: the hemisphere carries the
+    // scene, the low sun only rims and casts the long soft shadows.
+    hemi: { skyColor: '#5C6B7A', groundColor: '#3b4046', intensity: 1.5 },
     fog: {
-      color: '#737d87',
-      density: 0.0062,
-      heightDensity: 0.35,
+      color: '#67727d',
+      density: 0.0046,
+      heightDensity: 0.16,
       heightFalloff: 0.11,
       heightOffset: 0,
       noiseAmount: 0.3,
@@ -107,7 +111,7 @@ export const ACT_CONFIGS: Record<ActId, ActLookConfig> = {
       groundColor: '#5c6166',
       sunDiscColor: '#f2ead8',
       sunDiscSize: 0.038,
-      sunGlow: 0.5,
+      sunGlow: 0.65,
       cloudAmount: 0.75,
       cloudScale: 1.0,
     },

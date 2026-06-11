@@ -16,6 +16,13 @@ export class Engine {
   /** Multiplied with min(devicePixelRatio, 2). Set from quality settings. */
   resolutionScale = 1;
 
+  /**
+   * Whole-frame render totals. renderer.info resets per render() call, which
+   * under the post composer means per-pass — so the engine accumulates across
+   * the frame (info.autoReset = false, manual reset after capture).
+   */
+  readonly frameStats = { calls: 0, triangles: 0 };
+
   private clock = new THREE.Clock();
   private updateFns: Array<(dt: number, elapsed: number) => void> = [];
   private renderFn: ((dt: number) => void) | null = null;
@@ -33,6 +40,7 @@ export class Engine {
     this.canvas = this.renderer.domElement;
     container.appendChild(this.canvas);
 
+    this.renderer.info.autoReset = false;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.AgXToneMapping;
     this.renderer.toneMappingExposure = 0.85;
@@ -99,5 +107,8 @@ export class Engine {
     } else {
       this.renderer.render(this.scene, this.camera);
     }
+    this.frameStats.calls = this.renderer.info.render.calls;
+    this.frameStats.triangles = this.renderer.info.render.triangles;
+    this.renderer.info.reset();
   }
 }
