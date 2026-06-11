@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchWorldMaterial } from '../graphics/worldMaterial';
 import { makeMetalPainted, makePaintedSign } from './textures';
+import { mulberry32 } from '../core/math';
 
 /**
  * Street props (§5.3, §6.6), all procedural and aggressively instanced:
@@ -21,17 +22,6 @@ import { makeMetalPainted, makePaintedSign } from './textures';
 // Deterministic RNG + shared scratch (no per-frame work; props are static,
 // but scratch objects also keep the BUILD phase allocation-light).
 // ---------------------------------------------------------------------------
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 const _pos = new THREE.Vector3();
 const _scl = new THREE.Vector3();

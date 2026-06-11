@@ -8,7 +8,7 @@ import { setupLookdevGui } from './debug/gui';
 import { createPostStack } from './graphics/post';
 import { ACT_CONFIGS } from './graphics/palette';
 import { buildLookdevScene } from './scenes/lookdev';
-import { createAct1City, type Act1CityScene } from './scenes/act1_city';
+import { createAct1City } from './scenes/act1_city';
 
 // ---- M2: scene manager — act1 city (playable) + lookdev (tuning) ----
 
@@ -32,25 +32,29 @@ engine.setRenderFn((dt) => post.render(dt));
 engine.onResize((w, h) => post.setSize(w, h));
 
 const sceneManager = new SceneManager(engine);
-let act1: Act1CityScene | null = null;
-// Accessor defeats top-level flow narrowing (assignments happen in closures).
-const getAct1 = (): Act1CityScene | null => act1;
+
+// Generic glue (was per-scene wrapper code): the post stack tracks the
+// scene's sun disc and the free-cam yields to playable scenes.
+sceneManager.onSwitch((scene) => {
+  post.setGodRaysSource(scene?.godRaysSource ?? null);
+  if (scene?.player) freeCam.enabled = false;
+});
 
 sceneManager.register('lookdev', (): GameScene => {
   let scene: ReturnType<typeof buildLookdevScene> | null = null;
   let guiTeardown: (() => void) | null = null;
-  return {
+  const wrapper: GameScene = {
     id: 'lookdev',
+    godRaysSource: null,
     load() {
       scene = buildLookdevScene(engine);
-      post.setGodRaysSource(scene.godRaysSource);
+      wrapper.godRaysSource = scene.godRaysSource;
       post.setExposure(ACT_CONFIGS.act1.exposure, true);
       guiTeardown = setupLookdevGui(engine, scene, post);
       engine.camera.position.set(1.2, 1.7, 28);
       engine.camera.lookAt(0.5, 3.5, -80);
       freeCam.syncFromCamera(); // keep the authored framing
       freeCam.enabled = true;
-      act1 = null;
     },
     update(dt, elapsed) {
       scene?.update(dt, elapsed, engine.camera);
@@ -61,36 +65,15 @@ sceneManager.register('lookdev', (): GameScene => {
     },
     dispose() {
       guiTeardown?.();
-      post.setGodRaysSource(null);
       scene?.dispose();
       scene = null;
+      wrapper.godRaysSource = null;
     },
   };
+  return wrapper;
 });
 
-sceneManager.register('act1', (): GameScene => {
-  const scene = createAct1City(engine, input, post);
-  return {
-    id: 'act1',
-    load() {
-      scene.load();
-      post.setGodRaysSource(scene.godRaysSource);
-      act1 = scene;
-      freeCam.enabled = false;
-    },
-    update(dt, elapsed) {
-      scene.update(dt, elapsed);
-    },
-    applyQuality(q) {
-      scene.applyQuality?.(q);
-    },
-    dispose() {
-      post.setGodRaysSource(null);
-      scene.dispose();
-      act1 = null;
-    },
-  };
-});
+sceneManager.register('act1', () => createAct1City(engine, input, post));
 
 qualityManager.onChange((q) => {
   engine.resolutionScale = q.resolutionScale;
@@ -104,7 +87,8 @@ input.onKey('F3', () => hud.toggle());
 input.onKey('F8', () => {
   freeCam.enabled = !freeCam.enabled;
   if (freeCam.enabled) freeCam.syncFromCamera(); // continue from the current view
-  if (act1) act1.player.enabled = !freeCam.enabled;
+  const player = sceneManager.currentScene?.player;
+  if (player) player.enabled = !freeCam.enabled;
 });
 input.onKey('Digit1', () => sceneManager.switchTo('lookdev'));
 input.onKey('Digit2', () => sceneManager.switchTo('act1'));
@@ -130,9 +114,9 @@ if (search.includes('walk')) input.debugHold('KeyW');
 const spawnParam = /[?&]spawn=([^&]+)/.exec(search);
 if (spawnParam) {
   const v = spawnParam[1].split(',').map(Number);
-  const a = getAct1();
-  if (a && v.length === 3 && v.every((n) => Number.isFinite(n))) {
-    a.player.spawn(v[0], v[1], v[2]);
+  const player = sceneManager.currentScene?.player;
+  if (player && v.length === 3 && v.every((n) => Number.isFinite(n))) {
+    player.spawn(v[0], v[1], v[2]);
   }
 }
 
@@ -141,8 +125,8 @@ if (camParam) {
   const v = camParam[1].split(',').map(Number);
   if (v.length === 6 && v.every((n) => Number.isFinite(n))) {
     freeCam.enabled = false; // static framing for screenshots
-    const a = getAct1();
-    if (a) a.player.enabled = false;
+    const player = sceneManager.currentScene?.player;
+    if (player) player.enabled = false;
     engine.camera.position.set(v[0], v[1], v[2]);
     engine.camera.lookAt(v[3], v[4], v[5]);
   }

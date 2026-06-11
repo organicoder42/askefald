@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchWorldMaterial } from '../graphics/worldMaterial';
+import { mulberry32, clamp, smoothstep, dampAngle } from '../core/math';
 
 /**
  * Birk (§3.2, §4.5): grey-muzzled hunting dog, Tier-B procedural quadruped.
@@ -499,26 +500,6 @@ function taperFront(geo: THREE.BufferGeometry, zFrom: number, sx: number, sy: nu
   geo.computeVertexNormals();
 }
 
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v;
-}
-
-function smoothstep(lo: number, hi: number, v: number): number {
-  const t = clamp((v - lo) / (hi - lo), 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
 /** Linear approach with rate 1/seconds — frame-rate independent enough here. */
 function approach(current: number, target: number, rate: number, dt: number): number {
   const step = rate * dt;
@@ -530,12 +511,4 @@ function wrapAngle(a: number): number {
   while (a > Math.PI) a -= Math.PI * 2;
   while (a < -Math.PI) a += Math.PI * 2;
   return a;
-}
-
-/** Shortest-arc exponential angle damping (matches player.ts convention). */
-function dampAngle(current: number, target: number, rate: number, dt: number): number {
-  let diff = target - current;
-  while (diff > Math.PI) diff -= Math.PI * 2;
-  while (diff < -Math.PI) diff += Math.PI * 2;
-  return current + diff * Math.min(1, rate * dt);
 }

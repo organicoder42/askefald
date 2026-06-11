@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchWorldMaterial } from '../graphics/worldMaterial';
+import { mulberry32 } from '../core/math';
 import {
+  applyPBR,
   makeAsphalt,
   makeSidewalk,
   makePlasterFacade,
@@ -63,17 +65,6 @@ const TILE_ASH = 3;
 // Deterministic helpers (build-time; flicker helpers further below are
 // allocation-free for per-frame use).
 // ---------------------------------------------------------------------------
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 function sstep(x: number, e0: number, e1: number): number {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
@@ -159,15 +150,6 @@ function mergeInto(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   for (const g of geos) g.dispose();
   merged.computeBoundingSphere();
   return merged;
-}
-
-function applyPBR(mat: THREE.MeshStandardMaterial, set: PBRSet): void {
-  mat.map = set.map;
-  if (set.roughnessMap) {
-    mat.roughnessMap = set.roughnessMap;
-    mat.roughness = 1.0;
-  }
-  if (set.normalMap) mat.normalMap = set.normalMap;
 }
 
 /**

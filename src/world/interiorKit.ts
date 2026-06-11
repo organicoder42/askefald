@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchWorldMaterial } from '../graphics/worldMaterial';
-import { makeWoodFloor, makeInteriorPlaster, type PBRSet } from './textures';
+import { makeWoodFloor, makeInteriorPlaster, applyPBR } from './textures';
+import { mulberry32 } from '../core/math';
 
 /**
  * Candle interior kit (§5.2 Act I interiors, §6.8 exposure adaptation):
@@ -25,30 +26,10 @@ const WALL_T = 0.08; // half-extent of thin wall colliders
 const DOOR_W = 0.95;
 const DOOR_H = 2.05;
 
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 /** Cheap deterministic 1D noise for flicker (no allocations). */
 function flickerNoise(t: number): number {
   const s = Math.sin(t * 12.9898) * 43758.5453;
   return s - Math.floor(s);
-}
-
-function applyPBR(mat: THREE.MeshStandardMaterial, set: PBRSet): void {
-  mat.map = set.map;
-  if (set.roughnessMap) {
-    mat.roughnessMap = set.roughnessMap;
-    mat.roughness = 1.0;
-  }
-  if (set.normalMap) mat.normalMap = set.normalMap;
 }
 
 /** Plane with UVs in metres/tile (matches cityKit's convention). */

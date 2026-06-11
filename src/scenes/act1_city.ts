@@ -14,6 +14,7 @@ import { AshParticles } from '../graphics/ashParticles';
 import { ACT_CONFIGS, getSunDirection } from '../graphics/palette';
 import { worldUniforms } from '../graphics/worldMaterial';
 import { qualityManager } from '../core/quality';
+import { TriggerSet } from '../core/triggers';
 import {
   buildFacadeBlock,
   buildSkylineCards,
@@ -29,7 +30,7 @@ import {
   buildRubblePiles,
   type CarPlacement,
 } from '../world/props';
-import { makePlasterFacade, makeAshDrift, disposeAllGeneratedTextures, type PBRSet } from '../world/textures';
+import { makePlasterFacade, makeAshDrift, disposeAllGeneratedTextures, applyPBR } from '../world/textures';
 import { buildCandleFlat } from '../world/interiorKit';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchWorldMaterial } from '../graphics/worldMaterial';
@@ -517,7 +518,15 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
   // ---------------------------------------------------------------------
   // Scene lifecycle
   // ---------------------------------------------------------------------
-  let insideFlat = false;
+  // Exposure adaptation at the flat threshold (§6.8): hysteresis between
+  // enter/exit rects, setExposure only on state change.
+  const triggers = new TriggerSet();
+  triggers.add({
+    enter: FLAT_ENTER,
+    exit: FLAT_EXIT,
+    onEnter: () => post.setExposure(EXPOSURE_INTERIOR),
+    onExit: () => post.setExposure(act1.exposure),
+  });
 
   function applyActConfig(): void {
     worldUniforms.uFogColor.value.set(act1.fog.color);
@@ -544,7 +553,7 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
       player.spawn(1.2, 34, Math.PI);
       jonas.warpToSlot(player.position, player.heading);
       birk.warpToSlot(player.position, player.heading);
-      insideFlat = false;
+      triggers.reset();
     },
 
     applyQuality(q): void {
@@ -567,24 +576,7 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
         .addScaledVector(sunRig.sunDir, -GOD_RAYS_DISTANCE);
       godRaysSource.lookAt(engine.camera.position);
 
-      // Exposure adaptation at the flat threshold (§6.8) — hysteresis
-      // between enter/exit bounds, setExposure only on state change.
-      const px = player.position.x;
-      const pz = player.position.z;
-      if (!insideFlat) {
-        if (px > FLAT_ENTER.x0 && px < FLAT_ENTER.x1 && pz > FLAT_ENTER.z0 && pz < FLAT_ENTER.z1) {
-          insideFlat = true;
-          post.setExposure(EXPOSURE_INTERIOR);
-        }
-      } else if (
-        px < FLAT_EXIT.x0 ||
-        px > FLAT_EXIT.x1 ||
-        pz < FLAT_EXIT.z0 ||
-        pz > FLAT_EXIT.z1
-      ) {
-        insideFlat = false;
-        post.setExposure(act1.exposure);
-      }
+      triggers.update(player.position.x, player.position.z);
     },
 
     dispose(): void {
@@ -624,15 +616,6 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
 // ---------------------------------------------------------------------------
 // Local helpers
 // ---------------------------------------------------------------------------
-function applyPBR(mat: THREE.MeshStandardMaterial, set: PBRSet): void {
-  mat.map = set.map;
-  if (set.roughnessMap) {
-    mat.roughnessMap = set.roughnessMap;
-    mat.roughness = 1.0;
-  }
-  if (set.normalMap) mat.normalMap = set.normalMap;
-}
-
 /** Merge + free the sources (build-time only). */
 function mergeGeos(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const merged = mergeGeometries(geos, false);

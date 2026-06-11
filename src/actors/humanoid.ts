@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { patchWorldMaterial } from '../graphics/worldMaterial';
+import { mulberry32, clamp, smoothstep, dampAngle } from '../core/math';
 
 /**
  * Tier-B procedural humanoid (§6.7, §5.4): a code-built, hooded, scarfed
@@ -77,17 +78,6 @@ const ANKLE_Y = 0.07;
 const HIP_X = 0.09;
 const UPPER_ARM_LEN = 0.175;
 const FOREARM_LEN = 0.155;
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 export class HumanoidActor {
   readonly group = new THREE.Group();
@@ -484,21 +474,4 @@ export class HumanoidActor {
     this.geos.length = 0;
     this.mats.length = 0;
   }
-}
-
-/** Shortest-arc exponential angle damping (same convention as player.ts). */
-function dampAngle(current: number, target: number, rate: number, dt: number): number {
-  let diff = target - current;
-  while (diff > Math.PI) diff -= Math.PI * 2;
-  while (diff < -Math.PI) diff += Math.PI * 2;
-  return current + diff * Math.min(1, rate * dt);
-}
-
-function clamp(x: number, lo: number, hi: number): number {
-  return x < lo ? lo : x > hi ? hi : x;
-}
-
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
 }

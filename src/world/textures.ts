@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mulberry32, type Rng } from '../core/math';
 
 /**
  * Tier-B procedural texture library (§6.5): canvas-generated PBR sets,
@@ -19,24 +20,20 @@ export interface PBRSet {
   normalMap?: THREE.Texture;
 }
 
+/** Wire a PBRSet onto a standard material (roughnessMap implies roughness 1). */
+export function applyPBR(mat: THREE.MeshStandardMaterial, set: PBRSet): void {
+  mat.map = set.map;
+  if (set.roughnessMap) {
+    mat.roughnessMap = set.roughnessMap;
+    mat.roughness = 1.0;
+  }
+  if (set.normalMap) mat.normalMap = set.normalMap;
+}
+
 // ---------------------------------------------------------------------------
 // Shared machinery: seeded RNG, tileable value-noise fBm, canvas helpers,
 // sobel height→normal, registry + caches.
 // ---------------------------------------------------------------------------
-
-type Rng = () => number;
-
-/** Deterministic [0,1) stream — every random decision goes through this. */
-function mulberry32(seed: number): Rng {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** Stateless lattice hash → [0,1). Stable across wrap-duplicated draws. */
 function hash2(ix: number, iy: number, seed: number): number {

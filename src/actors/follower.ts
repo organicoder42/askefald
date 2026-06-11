@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ColliderWorld } from '../world/collision';
+import { dampAngle } from '../core/math';
 
 /**
  * Navmesh-free companion steering (§4.5): seek a slot behind/beside the
@@ -277,12 +278,4 @@ export class Follower {
 
     this.actor.update(dt, elapsed);
   }
-}
-
-/** Shortest-arc exponential angle damping (same convention as player.ts). */
-function dampAngle(current: number, target: number, rate: number, dt: number): number {
-  let diff = target - current;
-  while (diff > Math.PI) diff -= Math.PI * 2;
-  while (diff < -Math.PI) diff += Math.PI * 2;
-  return current + diff * Math.min(1, rate * dt);
 }

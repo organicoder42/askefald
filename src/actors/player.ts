@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Input } from '../core/input';
 import type { ColliderWorld } from '../world/collision';
 import type { HumanoidActor } from './humanoid';
+import { dampAngle } from '../core/math';
 
 /**
  * Third-person player controller (§4.2): WASD relative to the camera,
@@ -167,12 +168,4 @@ export class PlayerController {
   private snapCamera(): void {
     this.updateCamera(0);
   }
-}
-
-/** Shortest-arc exponential angle damping. */
-function dampAngle(current: number, target: number, rate: number, dt: number): number {
-  let diff = target - current;
-  while (diff > Math.PI) diff -= Math.PI * 2;
-  while (diff < -Math.PI) diff += Math.PI * 2;
-  return current + diff * Math.min(1, rate * dt);
 }
