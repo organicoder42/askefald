@@ -176,3 +176,40 @@
   signal sets beyond Act I; precise mSv calibration (reads plausibly, tune
   by eye later). Save is single-slot localStorage v1 with strict validate-
   or-null; multi-slot UI is post-M3.
+
+## M4 — Interlude A: the road out (2026-06-14)
+
+- First M4 slice (user-chosen): the `roadA` scene — the open landevej west
+  out of København toward Roskilde, third in the Title→Act1→RoadA→Act2
+  chain. Deliberate contrast with the Act-I street canyon: a dead-straight
+  two-lane road boring into the low veiled sun and the fog, ash blanketing
+  the fields, receding power-line poles + a broken guardrail as leading
+  lines, abandoned cars, a burned wreck (the interlude's one radiation hot
+  zone). "Nothing but distance."
+- Refactor first: the systems bundle act1 passed (`Act1Deps`) is generic, so
+  it became `src/systems/gameSystems.ts` (`GameSystems`); both scenes take
+  it and build their own scene-local story (beats, radio signals, radiation
+  sources). main.ts registers `roadA`, jumps to it on Digit3 / `?scene=roadA`,
+  and the JournalUi now holds ACT1 + ROADA entries.
+- Reuses the whole M1/M2 kit (sky/sun/ash/post, actors, colliders, props:
+  cars/rubble/sign/skyline) + all M3 systems. New inline geometry: ground
+  planes (UVs in metres so the shared cached textures' .repeat stays 1),
+  merged power-line poles+crossarms+sagging 2-segment wires, a merged
+  guardrail with a bent gap, dead trees. Player corridor x ∈ [−5.5, 5.5],
+  z ∈ [−252, 58]; spawn faces −Z (onward, into the sun).
+- `story/roadBeats.ts`: three quiet beats (depart → signal-comes-in-clear →
+  the tracks of those ahead), flag-guarded, unlock journal + autosave. Road
+  radio signals (ROSKILDE morse 96.4 + a voice band) strengthen with
+  progress down −Z, so walking onward literally brings the signal in.
+- Look look: shares ACT_CONFIGS.act1 (the overcast-ash grade is tuned +
+  verified; the road inherits it by design rather than forking the global
+  look). Sun azimuth ≈ −Z puts the low disc at the road's vanishing point.
+- Verified headless: 154 draw calls / 23 k tris, no console errors with
+  walk+radio+journal. A 3-lens visual critique (agent read the frames)
+  praised the loneliness composition; applied its top road-specific notes —
+  irregular pole spacing + per-pole lean + one toppled pole + snapped wire
+  spans (was a too-tidy "game fence"), and a settled/leaning ROSKILDE sign.
+  Global sun/ash/fog notes left to the shared act1 grade.
+- NEXT for M4: Act I proper (open the north junction, extend the city +
+  beats) and the deferred gameplay items (pickups/recovery, cinematic
+  dialogue camera). The roadA→Act II seam is the far fog edge (z −252).

@@ -8,7 +8,9 @@ import { setupLookdevGui } from './debug/gui';
 import { createPostStack } from './graphics/post';
 import { ACT_CONFIGS } from './graphics/palette';
 import { buildLookdevScene } from './scenes/lookdev';
-import { createAct1City, type Act1Deps } from './scenes/act1_city';
+import { createAct1City } from './scenes/act1_city';
+import { createRoadA } from './scenes/roadA';
+import type { GameSystems } from './systems/gameSystems';
 import { AudioEngine } from './audio/audioEngine';
 import { GameState } from './systems/gameState';
 import { Meters } from './systems/meters';
@@ -23,6 +25,7 @@ import { SubtitleDisplay } from './ui/subtitles';
 import { RadioOverlay } from './ui/radioOverlay';
 import { JournalUi } from './ui/journal';
 import { ACT1_JOURNAL } from './story/act1Beats';
+import { ROADA_JOURNAL } from './story/roadBeats';
 
 // ---- M3: scene manager + survival systems / radio / dialogue / journal ----
 
@@ -54,13 +57,13 @@ const subtitles = new SubtitleDisplay(ui);
 const dialogue = new DialogueRunner(subtitles);
 const gameHud = new Hud(ui, state);
 const radioOverlay = new RadioOverlay(ui, state);
-const journal = new JournalUi(ui, state, ACT1_JOURNAL);
+const journal = new JournalUi(ui, state, [...ACT1_JOURNAL, ...ROADA_JOURNAL]);
 const geiger = new GeigerCounter(new GeigerAudio(audio));
 const radio = new Radio(audio, state);
 const meters = new Meters(state);
 const save = new SaveSystem(state);
 
-const act1Deps: Act1Deps = {
+const systems: GameSystems = {
   state,
   meters,
   geiger,
@@ -123,7 +126,8 @@ sceneManager.register('lookdev', (): GameScene => {
   return wrapper;
 });
 
-sceneManager.register('act1', () => createAct1City(engine, input, post, act1Deps));
+sceneManager.register('act1', () => createAct1City(engine, input, post, systems));
+sceneManager.register('roadA', () => createRoadA(engine, input, post, systems));
 
 qualityManager.onChange((q) => {
   engine.resolutionScale = q.resolutionScale;
@@ -142,6 +146,7 @@ input.onKey('F8', () => {
 });
 input.onKey('Digit1', () => sceneManager.switchTo('lookdev'));
 input.onKey('Digit2', () => sceneManager.switchTo('act1'));
+input.onKey('Digit3', () => sceneManager.switchTo('roadA'));
 
 // Gameplay controls (playable scenes only): R radio, E skip line, J journal,
 // F5 quicksave, F9 quickload. Arrow keys tune the dial (handled in the scene).
@@ -181,7 +186,8 @@ engine.onUpdate((dt, elapsed) => {
 // ?cam=x,y,z,tx,ty,tz (free-cam pose), ?noao, ?stats.
 const search = location.search;
 const sceneParam = /[?&]scene=(\w+)/.exec(search)?.[1];
-sceneManager.switchTo(sceneParam === 'lookdev' ? 'lookdev' : 'act1');
+const startScene = sceneParam === 'lookdev' || sceneParam === 'roadA' ? sceneParam : 'act1';
+sceneManager.switchTo(startScene);
 
 if (search.includes('walk')) input.debugHold('KeyW');
 

@@ -15,15 +15,10 @@ import { ACT_CONFIGS, getSunDirection } from '../graphics/palette';
 import { worldUniforms } from '../graphics/worldMaterial';
 import { qualityManager } from '../core/quality';
 import { TriggerSet } from '../core/triggers';
-import type { GameState } from '../systems/gameState';
-import type { Meters, MeterEnv } from '../systems/meters';
-import { RadiationField, type GeigerCounter, type RadiationSource } from '../systems/geiger';
-import type { Radio, RadioSignal } from '../systems/radio';
-import type { DialogueRunner } from '../systems/dialogue';
-import type { SaveSystem } from '../systems/save';
-import type { Hud } from '../ui/hud';
-import type { RadioOverlay } from '../ui/radioOverlay';
-import type { JournalUi } from '../ui/journal';
+import type { MeterEnv } from '../systems/meters';
+import { RadiationField, type RadiationSource } from '../systems/geiger';
+import type { RadioSignal } from '../systems/radio';
+import type { GameSystems } from '../systems/gameSystems';
 import { Act1Beats } from '../story/act1Beats';
 import {
   buildFacadeBlock,
@@ -89,19 +84,6 @@ export interface Act1CityScene extends GameScene {
   godRaysSource: THREE.Mesh;
 }
 
-/** App-level systems (created once in main.ts) the scene orchestrates. */
-export interface Act1Deps {
-  state: GameState;
-  meters: Meters;
-  geiger: GeigerCounter;
-  radio: Radio;
-  dialogue: DialogueRunner;
-  hud: Hud;
-  radioOverlay: RadioOverlay;
-  journal: JournalUi;
-  save: SaveSystem;
-}
-
 // Radiation hot zones — the rubble piles (§4; matches the map + beat 3b).
 // Radii reach into the street centre so the field registers on the walked
 // route (player tracks x≈1–3); intensity peaks at the rubble on the kerb.
@@ -144,7 +126,7 @@ export function createAct1City(
   engine: Engine,
   input: Input,
   post: PostStack,
-  deps: Act1Deps,
+  deps: GameSystems,
 ): Act1CityScene {
   const act1 = ACT_CONFIGS.act1;
   const { state, meters, geiger, radio, dialogue, hud, radioOverlay, journal, save } = deps;
