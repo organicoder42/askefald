@@ -15,6 +15,16 @@ import { ACT_CONFIGS, getSunDirection } from '../graphics/palette';
 import { worldUniforms } from '../graphics/worldMaterial';
 import { qualityManager } from '../core/quality';
 import { TriggerSet } from '../core/triggers';
+import type { GameState } from '../systems/gameState';
+import type { Meters, MeterEnv } from '../systems/meters';
+import { RadiationField, type GeigerCounter, type RadiationSource } from '../systems/geiger';
+import type { Radio, RadioSignal } from '../systems/radio';
+import type { DialogueRunner } from '../systems/dialogue';
+import type { SaveSystem } from '../systems/save';
+import type { Hud } from '../ui/hud';
+import type { RadioOverlay } from '../ui/radioOverlay';
+import type { JournalUi } from '../ui/journal';
+import { Act1Beats } from '../story/act1Beats';
 import {
   buildFacadeBlock,
   buildSkylineCards,
@@ -79,10 +89,65 @@ export interface Act1CityScene extends GameScene {
   godRaysSource: THREE.Mesh;
 }
 
+/** App-level systems (created once in main.ts) the scene orchestrates. */
+export interface Act1Deps {
+  state: GameState;
+  meters: Meters;
+  geiger: GeigerCounter;
+  radio: Radio;
+  dialogue: DialogueRunner;
+  hud: Hud;
+  radioOverlay: RadioOverlay;
+  journal: JournalUi;
+  save: SaveSystem;
+}
+
+// Radiation hot zones — the rubble piles (§4; matches the map + beat 3b).
+// Radii reach into the street centre so the field registers on the walked
+// route (player tracks x≈1–3); intensity peaks at the rubble on the kerb.
+const RAD_SOURCES: RadiationSource[] = [
+  { x: 9.1, z: -18, radius: 11, intensity: 0.85 },
+  { x: -9.2, z: -55, radius: 11, intensity: 0.8 },
+  { x: -9.0, z: -120, radius: 12, intensity: 0.92 },
+];
+
+// Authored radio signals for Act I. Both transmit from the southwest
+// (toward Roskilde): strength rises as Ellen walks down-street (−z) and
+// west. ROSKILDE morse on 96.4; a faint voice band higher up the dial.
+function buildAct1Signals(player: PlayerController): RadioSignal[] {
+  // Strength keyed to progress down the street toward the SW fog edge.
+  const strengthSW = (): number => {
+    const z = player.position.z;
+    // 0 at the flat (z≈22), rising to ~1 deep south (z≈−150).
+    return Math.min(1, Math.max(0, (22 - z) / 150));
+  };
+  return [
+    {
+      freq: 96.4,
+      bandwidth: 0.5,
+      kind: 'morse',
+      message: 'ROSKILDE',
+      strengthAt: () => 0.25 + 0.75 * strengthSW(),
+    },
+    {
+      freq: 101.7,
+      bandwidth: 0.45,
+      kind: 'voice',
+      strengthAt: () => 0.15 + 0.4 * strengthSW(),
+    },
+  ];
+}
+
 const _box = new THREE.Box3();
 
-export function createAct1City(engine: Engine, input: Input, post: PostStack): Act1CityScene {
+export function createAct1City(
+  engine: Engine,
+  input: Input,
+  post: PostStack,
+  deps: Act1Deps,
+): Act1CityScene {
   const act1 = ACT_CONFIGS.act1;
+  const { state, meters, geiger, radio, dialogue, hud, radioOverlay, journal, save } = deps;
   const group = new THREE.Group();
   group.name = 'act1-city';
   const colliders = new ColliderWorld();
@@ -519,13 +584,29 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
   // Scene lifecycle
   // ---------------------------------------------------------------------
   // Exposure adaptation at the flat threshold (§6.8): hysteresis between
-  // enter/exit rects, setExposure only on state change.
+  // enter/exit rects, setExposure only on state change. The zone's .inside
+  // doubles as the indoors/heat flag for the meters + beats.
   const triggers = new TriggerSet();
-  triggers.add({
+  const flatZone = triggers.add({
     enter: FLAT_ENTER,
     exit: FLAT_EXIT,
     onEnter: () => post.setExposure(EXPOSURE_INTERIOR),
     onExit: () => post.setExposure(act1.exposure),
+  });
+
+  // ---------------------------------------------------------------------
+  // M3 systems wiring
+  // ---------------------------------------------------------------------
+  const radiation = new RadiationField(RAD_SOURCES);
+  const meterEnv: MeterEnv = { indoors: false, nearHeat: false, radiation: 0, radioOn: false };
+  const hudInfo = { geigerRate: 0 }; // persistent scratch (no per-frame alloc)
+  const beats = new Act1Beats({
+    state,
+    dialogue,
+    radio,
+    hud,
+    autosave: () =>
+      save.save('act1', { x: player.position.x, z: player.position.z, yaw: player.heading }),
   });
 
   function applyActConfig(): void {
@@ -554,6 +635,9 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
       jonas.warpToSlot(player.position, player.heading);
       birk.warpToSlot(player.position, player.heading);
       triggers.reset();
+      radio.setSignals(buildAct1Signals(player));
+      hud.setVisible(true);
+      hud.setPrompt(null);
     },
 
     applyQuality(q): void {
@@ -577,6 +661,36 @@ export function createAct1City(engine: Engine, input: Input, post: PostStack): A
       godRaysSource.lookAt(engine.camera.position);
 
       triggers.update(player.position.x, player.position.z);
+
+      // ---- M3 systems (player position drives everything) ----
+      const px = player.position.x;
+      const pz = player.position.z;
+      const insideFlat = flatZone.inside;
+
+      // Held radio tuning (Arrow keys; movement stays on WASD).
+      if (state.radio.on) {
+        if (input.pressed('ArrowLeft')) radio.tune(-1, dt);
+        if (input.pressed('ArrowRight')) radio.tune(1, dt);
+      }
+      radio.update(dt, px, pz);
+
+      const rad = radiation.sampleAt(px, pz);
+      geiger.update(dt, rad);
+
+      meterEnv.indoors = insideFlat;
+      meterEnv.nearHeat = insideFlat; // the candle flat is the only warm room
+      meterEnv.radiation = rad;
+      meterEnv.radioOn = state.radio.on;
+      meters.update(dt, meterEnv);
+
+      dialogue.update(dt);
+      beats.update(dt, px, pz, rad, insideFlat);
+
+      hudInfo.geigerRate = geiger.displayRate;
+      hud.update(dt, hudInfo);
+      radioOverlay.update(dt, radio.signalLevel);
+      journal.setPlayerPos(px, pz, player.heading);
+      journal.update(dt);
     },
 
     dispose(): void {

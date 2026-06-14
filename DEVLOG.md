@@ -121,3 +121,58 @@
 - Known tuning debt: shadow normalBias vs. grazing 8° sun on flat ash;
   exposure/LUT balance to be tuned by eye via the KeyG lil-gui panel, then
   baked back into ACT_CONFIGS.
+
+## M3 — Systems (2026-06-14)
+
+- Housekeeping first (commit fab9a75): `src/core/math.ts` collapses the
+  6× mulberry32 / 4× dampAngle / clamp / smoothstep copies (+lerp, damp);
+  `applyPBR` now lives beside PBRSet in textures.ts. `src/core/triggers.ts`
+  (TriggerZone/TriggerSet, enter/exit hysteresis) replaces act1's hardcoded
+  flat-exposure beat. GameScene grew optional `player`/`godRaysSource` and
+  SceneManager an `onSwitch` hook, so main.ts wires god-rays + free-cam +
+  HUD visibility generically — act1 registers its factory with no wrapper.
+- Layered the systems on three lynchpins authored inline before fan-out:
+  `audio/audioEngine.ts` (lazy AudioContext on first gesture; master→
+  sfx/radio/geiger buses; deterministic cached noise; SILENT+error-free
+  while ctx null — headless never gets a gesture), `systems/gameState.ts`
+  (the single mutable save surface: meters/radio/flags/journal +
+  serialize/applySave), `ui/uiShell.ts` (one fixed pointer-events:none DOM
+  overlay; rationed UI chroma — chalk text, amber ONLY for warnings + the
+  radio needle; Danish diegetic text).
+- Modules built against frozen skeleton contracts. A 6-way build+verify
+  workflow finished meters / geiger(+audio) / dialogue(+subtitles) / hud
+  before a session limit killed it; the radio trio (radio + synth +
+  overlay), save and journal were finished inline (CLAUDE.md straggler
+  rule). Zero `not implemented` left; tsc clean throughout.
+- Radio (§4.4) is the signature mechanic: continuous 88–108 MHz dial, lock
+  = squared proximity inside each signal's bandwidth, audible = lock ×
+  positional strength — so tuning AND walking toward a transmitter both
+  matter. RadioAudio is pure WebAudio synthesis (looped-noise static bed,
+  heterodyne whistle tracking dial distance, gated-tone morse from a
+  precomputed message timeline, wandering-formant "distant voice"), one
+  graph built once, per-frame = param automation only.
+- Geiger: linear-falloff RadiationField (max, no stacking) → Poisson click
+  scheduler (rate 0.18 + 28·intensity², exponential intervals from a
+  seeded stream) → one-shot filtered-noise ticks; HUD shows a damped
+  clicks/s as a Danish "mSv/t" dose. FILTRE drains with field intensity.
+- Story: `story/act1Beats.ts` drives Act I beats 1–4 (wake in the flat →
+  intro → first radio lock reads ROSKILDE in morse → onto the ash street →
+  first hot rubble zone → the painted sign), one-shot via GameState flags
+  so a restored save never replays; unlocks journal entries + autosaves.
+- Verified headless (1600×900, virtual-time): meter bars + Danish labels,
+  Geiger dose scaling 0,0 → 1,1 mSv/t with distance to rubble, radio band
+  with amber needle at 96,4 and signal bars, cinematic Danish subtitle,
+  hand-drawn journal map (ØSTERGADE, the flat, courtyard, rubble ✕) with
+  the player marker correctly placed. Budgets: 202 draw calls / 120 k tris
+  (UI is DOM — no GPU cost). No console errors with audio armed.
+- Bug found+fixed in verify: the journal player marker is
+  `position:absolute` with no top/left, so it anchored to its in-flow
+  position AFTER the 560 px canvas (bottom) and translate offset from
+  there — pinned to top:0/left:0 so the world→canvas projection reads true.
+- Headless UI hooks added to main.ts: `?radio`, `?freq=NN.N`, `?journal`,
+  `?sub` (the new UI only appears on input a headless run can't deliver).
+- Deferred: radio battery pickups + meter recovery items (M4 content);
+  dialogue camera-takeover / DoF (M3 is walk-and-talk only); per-act radio
+  signal sets beyond Act I; precise mSv calibration (reads plausibly, tune
+  by eye later). Save is single-slot localStorage v1 with strict validate-
+  or-null; multi-slot UI is post-M3.
