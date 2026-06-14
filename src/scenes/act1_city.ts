@@ -19,6 +19,7 @@ import type { MeterEnv } from '../systems/meters';
 import { RadiationField, type RadiationSource } from '../systems/geiger';
 import type { RadioSignal } from '../systems/radio';
 import type { GameSystems } from '../systems/gameSystems';
+import { PickupSet } from '../systems/pickups';
 import { Act1Beats } from '../story/act1Beats';
 import {
   buildFacadeBlock,
@@ -129,7 +130,7 @@ export function createAct1City(
   deps: GameSystems,
 ): Act1CityScene {
   const act1 = ACT_CONFIGS.act1;
-  const { state, meters, geiger, radio, dialogue, hud, radioOverlay, journal, save } = deps;
+  const { state, meters, geiger, radio, dialogue, hud, radioOverlay, journal, save, sfx } = deps;
   const group = new THREE.Group();
   group.name = 'act1-city';
   const colliders = new ColliderWorld();
@@ -586,10 +587,15 @@ export function createAct1City(
     state,
     dialogue,
     radio,
-    hud,
     autosave: () =>
       save.save('act1', { x: player.position.x, z: player.position.z, yaw: player.heading }),
   });
+
+  // Meter-recovery pickups (close the survival loop): a battery in the flat,
+  // a mask filter out in the courtyard by the shed.
+  const pickups = new PickupSet(state, meters, sfx, 'act1');
+  pickups.add({ id: 'flat-battery', kind: 'battery', x: 11.9, z: 23.4, y: 0.33 });
+  pickups.add({ id: 'court-filter', kind: 'filter', x: -30.5, z: 12.6, y: 0.33 });
 
   function applyActConfig(): void {
     worldUniforms.uFogColor.value.set(act1.fog.color);
@@ -610,6 +616,7 @@ export function createAct1City(
     load(): void {
       applyActConfig();
       engine.scene.add(group);
+      engine.scene.add(pickups.group);
       engine.scene.environment = sky.buildEnvironment(engine.renderer);
       engine.scene.environmentIntensity = 0.85;
       post.setExposure(act1.exposure, true);
@@ -668,6 +675,13 @@ export function createAct1City(
 
       dialogue.update(dt);
       beats.update(dt, px, pz, rad, insideFlat);
+      pickups.update(dt, px, pz);
+
+      // Centre prompt: silent during dialogue; pickup-in-reach beats the
+      // (one-time) "turn the radio on" hint when both want the line.
+      let prompt: string | null = null;
+      if (!dialogue.active) prompt = pickups.promptText ?? (beats.wantsRadioPrompt ? 'R — TÆND RADIOEN' : null);
+      hud.setPrompt(prompt);
 
       hudInfo.geigerRate = geiger.displayRate;
       hud.update(dt, hudInfo);
@@ -676,8 +690,25 @@ export function createAct1City(
       journal.update(dt);
     },
 
+    interact(): void {
+      const r = pickups.interact();
+      if (r?.first && !dialogue.active) {
+        dialogue.play([
+          {
+            speaker: 'ELLEN',
+            text:
+              r.kind === 'battery'
+                ? 'Et batteri. Radioen lever lidt endnu.'
+                : 'Et filter. Det kan redde Jonas’ lunger.',
+          },
+        ]);
+      }
+    },
+
     dispose(): void {
       engine.scene.remove(group);
+      engine.scene.remove(pickups.group);
+      pickups.dispose();
       group.traverse((obj) => {
         if ((obj as THREE.Mesh).isMesh || (obj as THREE.Points).isPoints) {
           const mesh = obj as THREE.Mesh;

@@ -28,6 +28,7 @@ import {
 import { buildAbandonedCars, buildRubblePiles, buildPaintedSign, type CarPlacement } from '../world/props';
 import { buildSkylineCards } from '../world/cityKit';
 import type { GameSystems } from '../systems/gameSystems';
+import { PickupSet } from '../systems/pickups';
 import type { MeterEnv } from '../systems/meters';
 import { RadiationField, type RadiationSource } from '../systems/geiger';
 import type { RadioSignal } from '../systems/radio';
@@ -87,7 +88,7 @@ export function createRoadA(
   deps: GameSystems,
 ): GameScene {
   const cfg = ACT_CONFIGS.act1; // Interlude shares Act-I's overcast ash look.
-  const { state, meters, geiger, radio, dialogue, hud, radioOverlay, journal, save } = deps;
+  const { state, meters, geiger, radio, dialogue, hud, radioOverlay, journal, save, sfx } = deps;
   const group = new THREE.Group();
   group.name = 'roadA';
   const colliders = new ColliderWorld();
@@ -353,6 +354,11 @@ export function createRoadA(
     autosave: () => save.save('roadA', { x: player.position.x, z: player.position.z, yaw: player.heading }),
   });
 
+  // Meter-recovery pickups: scavenge from the stalled cars along the road.
+  const pickups = new PickupSet(state, meters, sfx, 'roadA');
+  pickups.add({ id: 'car1-battery', kind: 'battery', x: 3.6, z: 26.5, y: 0.33 });
+  pickups.add({ id: 'jack-filter', kind: 'filter', x: -1.4, z: -62, y: 0.33 });
+
   function applyConfig(): void {
     worldUniforms.uFogColor.value.set(cfg.fog.color);
     worldUniforms.uFogDensity.value = cfg.fog.density;
@@ -372,6 +378,7 @@ export function createRoadA(
     load(): void {
       applyConfig();
       engine.scene.add(group);
+      engine.scene.add(pickups.group);
       engine.scene.environment = sky.buildEnvironment(engine.renderer);
       engine.scene.environmentIntensity = 0.85;
       post.setExposure(cfg.exposure, true);
@@ -420,6 +427,8 @@ export function createRoadA(
 
       dialogue.update(dt);
       beats.update(dt, px, pz);
+      pickups.update(dt, px, pz);
+      hud.setPrompt(dialogue.active ? null : pickups.promptText);
 
       hudInfo.geigerRate = geiger.displayRate;
       hud.update(dt, hudInfo);
@@ -428,8 +437,25 @@ export function createRoadA(
       journal.update(dt);
     },
 
+    interact(): void {
+      const r = pickups.interact();
+      if (r?.first && !dialogue.active) {
+        dialogue.play([
+          {
+            speaker: 'ELLEN',
+            text:
+              r.kind === 'battery'
+                ? 'Et batteri. Radioen lever lidt endnu.'
+                : 'Et filter. Det kan redde Jonas’ lunger.',
+          },
+        ]);
+      }
+    },
+
     dispose(): void {
       engine.scene.remove(group);
+      engine.scene.remove(pickups.group);
+      pickups.dispose();
       group.traverse((obj) => {
         if ((obj as THREE.Mesh).isMesh || (obj as THREE.Points).isPoints) {
           const mesh = obj as THREE.Mesh;

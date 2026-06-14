@@ -4,6 +4,7 @@ import type { GeigerCounter } from './geiger';
 import type { Radio } from './radio';
 import type { DialogueRunner } from './dialogue';
 import type { SaveSystem } from './save';
+import type { Sfx } from '../audio/sfx';
 import type { Hud } from '../ui/hud';
 import type { RadioOverlay } from '../ui/radioOverlay';
 import type { JournalUi } from '../ui/journal';
@@ -24,4 +25,5 @@ export interface GameSystems {
   radioOverlay: RadioOverlay;
   journal: JournalUi;
   save: SaveSystem;
+  sfx: Sfx;
 }

@@ -20,6 +20,8 @@ export interface GameScene {
   godRaysSource?: THREE.Mesh | null;
   load(): void;
   update(dt: number, elapsed: number): void;
+  /** Player pressed the interact key (E) outside dialogue — pickups, doors. */
+  interact?(): void;
   /** Live quality switches (shadow map size, particle density, …). */
   applyQuality?(q: QualitySettings): void;
   dispose(): void;

@@ -1,5 +1,5 @@
 import { clamp } from '../core/math';
-import type { GameState } from './gameState';
+import type { GameState, MeterState } from './gameState';
 
 /**
  * Survival meters simulation (M3 §4): VARME / BATTERI / FILTRE.
@@ -63,6 +63,13 @@ export class Meters {
     m.varme = clamp(m.varme, 0, 1);
     m.batteri = clamp(m.batteri, 0, 1);
     m.filtre = clamp(m.filtre, 0, 1);
+  }
+
+  /** Apply a discrete gain (pickups/recovery items); clamps to [0,1]. The
+   *  Meters class stays the sole writer of state.meters. */
+  recover(meter: keyof MeterState, amount: number): void {
+    const m = this.state.meters;
+    m[meter] = clamp(m[meter] + amount, 0, 1);
   }
 
   /** True while any meter sits below METER_RATES.warnThreshold. */

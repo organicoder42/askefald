@@ -19,6 +19,7 @@ import { GeigerCounter } from './systems/geiger';
 import { Radio } from './systems/radio';
 import { DialogueRunner } from './systems/dialogue';
 import { SaveSystem } from './systems/save';
+import { Sfx } from './audio/sfx';
 import { UiShell } from './ui/uiShell';
 import { Hud } from './ui/hud';
 import { SubtitleDisplay } from './ui/subtitles';
@@ -62,6 +63,7 @@ const geiger = new GeigerCounter(new GeigerAudio(audio));
 const radio = new Radio(audio, state);
 const meters = new Meters(state);
 const save = new SaveSystem(state);
+const sfx = new Sfx(audio);
 
 const systems: GameSystems = {
   state,
@@ -73,6 +75,7 @@ const systems: GameSystems = {
   radioOverlay,
   journal,
   save,
+  sfx,
 };
 
 const sceneManager = new SceneManager(engine);
@@ -155,7 +158,10 @@ input.onKey('KeyR', () => {
   if (inGame()) radio.toggle();
 });
 input.onKey('KeyE', () => {
-  if (inGame() && dialogue.active) dialogue.advance();
+  if (!inGame()) return;
+  // E advances dialogue while a line is up; otherwise it interacts (pickups).
+  if (dialogue.active) dialogue.advance();
+  else sceneManager.currentScene?.interact?.();
 });
 input.onKey('KeyJ', () => {
   if (inGame()) journal.toggle();
@@ -230,6 +236,18 @@ if (freqParam) {
 if (search.includes('journal')) journal.toggle();
 if (search.includes('sub')) {
   dialogue.play([{ speaker: 'ELLEN', text: 'Vi går mod Roskilde. Hold dig tæt på.', duration: 9999 }]);
+}
+// ?interact fires the scene's interact() once after the pickups have had a
+// frame to detect proximity (headless can't deliver an E keypress).
+if (search.includes('interact')) {
+  // Frame-gated (not elapsed-gated): headless virtual-time barely advances
+  // the RAF clock, but the loop does run a few frames — by frame 2 the scene
+  // has run an update (so pickups have detected proximity).
+  let frames = 0;
+  engine.onUpdate(() => {
+    frames++;
+    if (frames === 2) sceneManager.currentScene?.interact?.();
+  });
 }
 
 if (search.includes('stats')) {

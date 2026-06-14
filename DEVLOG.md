@@ -213,3 +213,34 @@
 - NEXT for M4: Act I proper (open the north junction, extend the city +
   beats) and the deferred gameplay items (pickups/recovery, cinematic
   dialogue camera). The roadA→Act II seam is the far fog edge (z −252).
+
+## M4 — Pickups + meter recovery + the interact verb (2026-06-14)
+
+- Closes the survival loop: BATTERI/FILTRE previously only drained (VARME
+  alone recovered, at the candle). `systems/pickups.ts` (`PickupSet`) places
+  scavenged batteries + mask filters; the nearest within 1.7 m surfaces a
+  Danish prompt; E collects it — applying the gain through `Meters.recover`
+  (Meters stays the sole writer of state.meters), playing an `audio/sfx.ts`
+  cue, and setting a GameState flag (`pickup.<scene>.<id>`) so it stays gone
+  across saves and scene re-entry. Items read by silhouette + idle bob + the
+  prompt, not by glow (chroma stays rationed — no amber affordance).
+- The interact verb: GameScene gained optional `interact?()`; main.ts routes
+  E to dialogue.advance() while a line is up, else to the scene's interact().
+  Per-kind teaching line on first pickup (`taught.<kind>` flag).
+- Prompt ownership refactor: act1Beats no longer pokes the HUD; it exposes
+  `wantsRadioPrompt`, and the scene arbitrates one centre prompt per frame
+  (pickup-in-reach > the one-time radio hint > none), calling the idempotent
+  hud.setPrompt once. Sfx added to GameSystems (app-level, on the sfx bus).
+- Placements: act1 — a battery in the flat, a filter in the courtyard;
+  roadA — battery + filter scavenged from the stalled cars.
+- Verified headless: prompts read "E — TAG BATTERI/FILTER" by proximity in
+  both scenes; a `?interact` debug hook (frame-gated) fired the collect and
+  logged batteri 0.80 → 1.00. No console errors.
+- VERIFICATION GOTCHA (learned here): under Chrome `--virtual-time-budget`
+  the RAF/`clock` loop barely advances `elapsed`, so TIME-gated logic (the
+  1.5 s intro delay, meter drain, CSS fill transitions) does not progress in
+  headless and can't be screenshotted — only position/flag-driven state can.
+  Verify time-evolved behaviour by logging, or gate debug hooks on a frame
+  count, not elapsed. (The live browser uses real time and is unaffected.)
+- Headless hook added: `?interact` (fires the scene interact() once, a couple
+  of frames in — the only way to exercise pickups without an E keypress).

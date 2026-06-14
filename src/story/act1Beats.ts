@@ -2,7 +2,6 @@ import { TriggerSet } from '../core/triggers';
 import type { GameState } from '../systems/gameState';
 import type { DialogueRunner, DialogueLine } from '../systems/dialogue';
 import type { Radio } from '../systems/radio';
-import type { Hud } from '../ui/hud';
 import type { JournalEntry } from '../ui/journal';
 
 /**
@@ -102,7 +101,6 @@ export interface Act1BeatsDeps {
   state: GameState;
   dialogue: DialogueRunner;
   radio: Radio;
-  hud: Hud;
   /** Persist the current pose+state (scene supplies slot/pose). */
   autosave(): void;
 }
@@ -112,7 +110,6 @@ export class Act1Beats {
   private readonly triggers = new TriggerSet();
   private introDelay = 1.5;
   private lockTime = 0;
-  private promptShown = false;
 
   constructor(deps: Act1BeatsDeps) {
     this.d = deps;
@@ -145,8 +142,15 @@ export class Act1Beats {
   reset(): void {
     this.introDelay = 1.5;
     this.lockTime = 0;
-    this.promptShown = false;
     this.triggers.reset();
+  }
+
+  /** The scene shows the "turn the radio on" prompt while this is true (it
+   *  arbitrates against the pickup prompt). True after the intro, until the
+   *  radio is first powered on. */
+  get wantsRadioPrompt(): boolean {
+    const { state } = this.d;
+    return state.hasFlag(FLAG_INTRO) && !state.hasFlag(FLAG_RADIO_ON) && !state.radio.on;
   }
 
   /** Per frame from the scene. insideFlat comes from the exposure zone. */
@@ -157,9 +161,9 @@ export class Act1Beats {
     geigerIntensity: number,
     insideFlat: boolean,
   ): void {
-    const { state, dialogue, radio, hud } = this.d;
+    const { state, dialogue, radio } = this.d;
 
-    // Beat 1 — intro dialogue after a short hold, then the radio prompt.
+    // Beat 1 — intro dialogue after a short hold.
     if (!state.hasFlag(FLAG_INTRO)) {
       this.introDelay -= dt;
       if (this.introDelay <= 0) {
@@ -170,16 +174,10 @@ export class Act1Beats {
       }
     }
 
-    // Radio prompt: stands until the radio is first powered on.
-    if (!state.hasFlag(FLAG_RADIO_ON)) {
-      if (state.radio.on) {
-        state.setFlag(FLAG_RADIO_ON);
-        hud.setPrompt(null);
-        this.promptShown = false;
-      } else if (state.hasFlag(FLAG_INTRO) && !dialogue.active && !this.promptShown) {
-        hud.setPrompt('R — TÆND RADIOEN');
-        this.promptShown = true;
-      }
+    // The "turn the radio on" prompt (surfaced by the scene via
+    // wantsRadioPrompt) latches off once the radio is first powered.
+    if (!state.hasFlag(FLAG_RADIO_ON) && state.radio.on) {
+      state.setFlag(FLAG_RADIO_ON);
     }
 
     // Beat 2 — sustained signal lock (≥ 1.5 s cumulative).

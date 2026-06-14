@@ -29,13 +29,20 @@ build plan summary is in `README.md` (milestone checklist).
 - Headless verification (no interactive browser available): keep the dev
   server running, then
   `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --screenshot=shots/x.png --window-size=1920,1080 --hide-scrollbars --virtual-time-budget=15000 --use-angle=metal "http://localhost:5173/?…"`.
-  URL hooks in main.ts: `?scene=lookdev`, `?walk` (auto-hold W),
+  URL hooks in main.ts: `?scene=lookdev|roadA`, `?walk` (auto-hold W),
   `?spawn=x,z,yaw`, `?cam=x,y,z,tx,ty,tz`, `?stats` (console budget lines —
-  capture with `--enable-logging=stderr 2>&1 | grep STATS`), `?noao`.
+  capture with `--enable-logging=stderr 2>&1 | grep STATS`), `?noao`;
+  UI hooks `?radio`, `?freq=NN.N`, `?journal`, `?sub`, `?interact`.
   Headless fps is software-GL — judge budgets (≤300 draw calls, ≤1.5 M
   tris), not fps. Read screenshots with the Read tool; judge full-res
   crops (`sips -c h w --cropOffset y x`), not thumbnails.
-- In-game debug: F3 perf HUD, F8 free-cam, 1/2 scene jump, G look-dev GUI.
+- HEADLESS CAVEAT: `--virtual-time-budget` barely advances the RAF/`clock`
+  `elapsed`, so time-gated behaviour (intro delays, meter drain, CSS
+  transitions) does NOT progress and cannot be screenshotted — only
+  position/flag-driven state can. Verify time-evolved logic by logging
+  (`console.log` + `--enable-logging=stderr`) or gate debug hooks on a frame
+  count, not elapsed. The live browser uses real time and is unaffected.
+- In-game debug: F3 perf HUD, F8 free-cam, 1/2/3 scene jump, G look-dev GUI.
 
 ## Hard conventions
 

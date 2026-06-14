@@ -27,7 +27,7 @@ Works fully offline — all geometry, textures and audio are procedural (Tier B)
 | Shift | brisk walk |
 | R | tænd/sluk radioen (radio on/off) |
 | ← / → | tune the dial (while the radio is on) |
-| E | spring replik over (skip dialogue line) |
+| E | spring replik over / saml op (skip dialogue · pick up item) |
 | J | dagbog + kort (journal + map) |
 | F5 / F9 | quicksave / quickload |
 | F3 | perf HUD |
