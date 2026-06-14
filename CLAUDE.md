@@ -10,13 +10,18 @@ build plan summary is in `README.md` (milestone checklist).
 
 - DONE: M0 bootstrap, M1 rendering core + look-dev street, M2 player &
   world kit (Ellen + Jonas + Birk walking the Act I street, candle
-  interior, collision, scene manager).
-- NEXT: M3 systems — meters (VARME/BATTERI/FILTRE), Geiger, radio (tuning
-  UI + synthesized audio, §4.4 signature mechanic), dialogue engine +
-  Danish subtitles, journal/map, saves. Verification: vertical slice of
-  Act I beats 1–4. Start with the deferred housekeeping (below).
+  interior, collision, scene manager), M3 systems — meters
+  (VARME/BATTERI/FILTRE), Geiger + radiation field, synth radio (§4.4),
+  dialogue + Danish subtitles, journal/map, localStorage saves, Act I
+  beats 1–4 (story/act1Beats.ts). App-level singletons live in main.ts
+  and are handed to act1 via Act1Deps; UI is a DOM overlay (ui/uiShell.ts).
+- NEXT: M4 — Act I proper + Interlude A. Build out the full Act-I
+  traversal network beyond the M2/M3 street cap (z ∈ [−150,+40]), more
+  beats/dialogue, the road-out interlude. Per-act radio signal sets,
+  battery/filter pickups + meter recovery items, and dialogue
+  camera-takeover/DoF were deferred from M3 — fold in as the content needs.
 - Read `DEVLOG.md` before working — it records every architectural
-  decision and the bugs already found and fixed.
+  decision and the bugs already found and fixed (incl. the M3 entry).
 
 ## Commands
 
@@ -60,18 +65,18 @@ build plan summary is in `README.md` (milestone checklist).
 - Commit per milestone; verify (typecheck + build + headless screenshots +
   budget stats) before committing. Keep DEVLOG.md updated as you go.
 
-## Deferred housekeeping (do at M3 start)
+## Open technical debt
 
-- Consolidate duplicated helpers: mulberry32 (6 copies), dampAngle (4),
-  applyPBR (3), hash/smooth-noise (2) → shared src/core modules.
-- TriggerZone abstraction for interior exposure beats (act1_city has a
-  hardcoded one-off for the flat).
-- Generalize per-scene glue (godRaysSource/player) onto GameScene so
-  main.ts stops special-casing act1.
+- DONE at M3 start: helper consolidation → src/core/math.ts (mulberry32,
+  dampAngle, clamp, smoothstep, lerp, damp; applyPBR lives in textures.ts);
+  TriggerZone/TriggerSet → src/core/triggers.ts; GameScene gained optional
+  player/godRaysSource + SceneManager.onSwitch so main.ts glue is generic.
 - Draw-call recovery: segmented actors cost ~17 draws each; Tier-A skinned
-  characters (M7 fetch script) are the plan.
+  characters (M7 fetch script) are the plan. (M3 street ~202 draws.)
 - PCFSoftShadowMap deprecated in three r184 (falls back to PCF) — revisit
   shadow filtering at M7.
+- Geiger mSv readout reads a touch low vs. distance (displayRate smoothing +
+  player settling); calibrate by eye when Act I content lands.
 
 ## Working method
 
