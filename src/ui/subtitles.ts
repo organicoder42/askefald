@@ -1,5 +1,8 @@
 import { UI_COLORS, type UiShell } from './uiShell';
 
+// CSS is per-shell; guard against duplicate injection if rebuilt.
+const styledShells = new WeakSet<UiShell>();
+
 /**
  * Subtitle display (M3 §5): centred above the lower screen edge, cinematic
  * style — speaker tag in letter-spaced small caps (chalk-dim), line text in
@@ -18,7 +21,9 @@ export class SubtitleDisplay {
   private visible = false;
 
   constructor(shell: UiShell) {
-    shell.addStyle(`
+    if (!styledShells.has(shell)) {
+      styledShells.add(shell);
+      shell.addStyle(`
       #ui-root .ask-sub {
         position: absolute; left: 50%; bottom: 13vh;
         transform: translateX(-50%);
@@ -35,6 +40,7 @@ export class SubtitleDisplay {
         text-wrap: balance;
       }
     `);
+    }
     this.box = shell.el('div', 'ask-sub');
     this.speakerEl = shell.el('div', 'ask-label ask-sub-speaker', this.box);
     this.textEl = shell.el('div', 'ask-sub-text', this.box);

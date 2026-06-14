@@ -17,6 +17,9 @@ const SPAN = RADIO_FREQ_MAX - RADIO_FREQ_MIN; // 20 MHz
 const FADE_S = 0.16;
 const MAJOR_LABELS = [88, 93, 98, 103, 108];
 
+// CSS is per-shell; guard against duplicate injection if rebuilt.
+const styledShells = new WeakSet<UiShell>();
+
 export class RadioOverlay {
   private readonly state: GameState;
   private readonly panel: HTMLDivElement;
@@ -31,7 +34,9 @@ export class RadioOverlay {
 
   constructor(shell: UiShell, state: GameState) {
     this.state = state;
-    shell.addStyle(`
+    if (!styledShells.has(shell)) {
+      styledShells.add(shell);
+      shell.addStyle(`
       #ui-root .ask-radio {
         position: absolute; left: 50%; bottom: 80px;
         transform: translateX(-50%);
@@ -60,12 +65,14 @@ export class RadioOverlay {
         font-size: 9px; color: ${UI_COLORS.chalkDim};
         font-variant-numeric: tabular-nums;
       }
+      /* Needle spans the band width so translateX(%) positions it on the
+         compositor (no per-update layout); the 1px line is its left border. */
       #ui-root .ask-radio-needle {
-        position: absolute; top: 0; bottom: 6px; width: 1px;
-        background: ${UI_COLORS.amber}; transform: translateX(-0.5px);
+        position: absolute; top: 0; bottom: 6px; left: 0; width: 100%;
+        pointer-events: none; border-left: 1px solid ${UI_COLORS.amber};
       }
       #ui-root .ask-radio-needle::before {
-        content: ''; position: absolute; top: -1px; left: -3px;
+        content: ''; position: absolute; top: -1px; left: -4px;
         border-left: 4px solid transparent; border-right: 4px solid transparent;
         border-top: 5px solid ${UI_COLORS.amber};
       }
@@ -78,6 +85,7 @@ export class RadioOverlay {
       }
       #ui-root .ask-radio-bar.lit { background: ${UI_COLORS.chalk}; }
     `);
+    }
 
     this.panel = shell.el('div', 'ask-panel ask-radio');
     const top = shell.el('div', 'ask-radio-top', this.panel);
@@ -111,7 +119,9 @@ export class RadioOverlay {
       if (on) {
         this.panel.style.display = 'block';
         this.hideTimer = 0;
-        // Add the on-class on the next style flush so the fade plays.
+        // Force a reflow so the browser registers opacity:0 before we flip
+        // the class — otherwise the 150 ms fade-in snaps instantly.
+        void this.panel.offsetWidth;
         this.panel.classList.add('ask-radio-on');
       } else {
         this.panel.classList.remove('ask-radio-on');
@@ -129,7 +139,8 @@ export class RadioOverlay {
     const freq = this.state.radio.freq;
     if (Math.abs(freq - this.lastFreq) >= 0.05) {
       this.lastFreq = freq;
-      this.needle.style.left = `${((freq - RADIO_FREQ_MIN) / SPAN) * 100}%`;
+      // translateX(%) is relative to the needle's own (band-wide) width.
+      this.needle.style.transform = `translateX(${((freq - RADIO_FREQ_MIN) / SPAN) * 100}%)`;
       this.readout.textContent = `${freq.toFixed(1).replace('.', ',')} MHz`;
     }
 

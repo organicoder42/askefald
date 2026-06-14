@@ -67,8 +67,14 @@ export class GameState {
     return this.journalIds;
   }
 
-  on(kind: StateEventKind, fn: (id: string) => void): void {
-    this.listeners[kind].push(fn);
+  /** Subscribe to discrete state changes; returns an unsubscribe function. */
+  on(kind: StateEventKind, fn: (id: string) => void): () => void {
+    const arr = this.listeners[kind];
+    arr.push(fn);
+    return () => {
+      const i = arr.indexOf(fn);
+      if (i !== -1) arr.splice(i, 1);
+    };
   }
 
   serialize(sceneId: string, player: { x: number; z: number; yaw: number }): SaveDataV1 {

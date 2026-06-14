@@ -635,6 +635,7 @@ export function createAct1City(
       jonas.warpToSlot(player.position, player.heading);
       birk.warpToSlot(player.position, player.heading);
       triggers.reset();
+      beats.reset();
       radio.setSignals(buildAct1Signals(player));
       hud.setVisible(true);
       hud.setPrompt(null);

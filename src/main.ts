@@ -81,6 +81,13 @@ sceneManager.onSwitch((scene) => {
   post.setGodRaysSource(scene?.godRaysSource ?? null);
   if (scene?.player) freeCam.enabled = false;
   gameHud.setVisible(!!scene?.player);
+  // Leaving a playable scene (e.g. the debug 1/2 jump): clear gameplay UI
+  // so a half-played line or open journal doesn't linger over look-dev.
+  if (!scene?.player) {
+    dialogue.stop();
+    gameHud.setPrompt(null);
+    if (journal.isOpen) journal.toggle();
+  }
 });
 
 sceneManager.register('lookdev', (): GameScene => {

@@ -1,5 +1,6 @@
 import type { GameState, SaveDataV1 } from './gameState';
 import { clamp } from '../core/math';
+import { RADIO_FREQ_MIN, RADIO_FREQ_MAX } from './radio';
 
 /**
  * Save system (M3 §7): versioned JSON in localStorage under
@@ -49,7 +50,7 @@ function validate(raw: unknown): SaveDataV1 | null {
       batteri: clamp(m.batteri, 0, 1),
       filtre: clamp(m.filtre, 0, 1),
     },
-    radio: { on: r.on, freq: r.freq },
+    radio: { on: r.on, freq: clamp(r.freq, RADIO_FREQ_MIN, RADIO_FREQ_MAX) },
     flags: o.flags,
     journal: o.journal,
   };

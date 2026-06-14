@@ -30,6 +30,9 @@ const Z_MAX = 48;
 const MAP_W = 420; // CSS px
 const MAP_H = 560;
 
+// CSS is per-shell; guard against duplicate injection if rebuilt.
+const styledShells = new WeakSet<UiShell>();
+
 export class JournalUi {
   private readonly state: GameState;
   private readonly entriesById: Map<string, JournalEntry>;
@@ -66,7 +69,9 @@ export class JournalUi {
     this.offX = (MAP_W - worldW * this.scale) / 2;
     this.offY = (MAP_H - worldH * this.scale) / 2;
 
-    shell.addStyle(`
+    if (!styledShells.has(shell)) {
+      styledShells.add(shell);
+      shell.addStyle(`
       #ui-root .ask-journal {
         position: absolute; inset: 0; display: none;
         align-items: center; justify-content: center;
@@ -105,6 +110,7 @@ export class JournalUi {
         clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
       }
     `);
+    }
 
     this.layer = shell.el('div', 'ask-journal');
     shell.el('div', 'ask-label ask-journal-head', this.layer).textContent = 'DAGBOG';
@@ -129,6 +135,9 @@ export class JournalUi {
     if (this.open) {
       this.layer.style.display = 'flex';
       this.hideTimer = 0;
+      // Force a reflow so the opacity:0 start state registers before the
+      // class flip — otherwise the open fade snaps instead of easing.
+      void this.layer.offsetWidth;
       this.layer.classList.add('ask-journal-on');
       if (!this.mapDrawn) {
         this.drawMap();

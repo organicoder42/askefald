@@ -67,7 +67,13 @@ export class GeigerCounter {
     this.audio = audio;
     this.rng = mulberry32(1213);
     // Seed the first interval at the ambient rate (intensity 0).
-    this.nextIn = Math.max(MIN_INTERVAL, -Math.log(1 - this.rng()) / RATE_AMBIENT);
+    this.nextIn = this.drawInterval(RATE_AMBIENT);
+  }
+
+  /** Exponential inter-arrival draw, floored so a near-1 u can't stall it. */
+  private drawInterval(rate: number): number {
+    const u = Math.min(1 - 1e-9, this.rng());
+    return Math.max(MIN_INTERVAL, -Math.log(1 - u) / rate);
   }
 
   /** Schedule clicks for this frame from the current field intensity 0..1. */
@@ -79,7 +85,7 @@ export class GeigerCounter {
       const base = 0.4 + 0.6 * Math.min(1, intensity * 1.4);
       const jitter = 1 + (this.rng() * 2 - 1) * 0.2;
       this.audio.click(clamp(base * jitter, 0, 1));
-      this.nextIn += Math.max(MIN_INTERVAL, -Math.log(1 - this.rng()) / rate);
+      this.nextIn += this.drawInterval(rate);
     }
     this.smoothedRate = damp(this.smoothedRate, rate, DISPLAY_DAMP_RATE, dt);
   }

@@ -175,7 +175,7 @@ export class Hud {
     const tenths = rate < RATE_FLOOR ? 0 : Math.round(rate * MSV_PER_RATE * 10);
     if (tenths !== this.lastDoseTenths) {
       this.lastDoseTenths = tenths;
-      const whole = (tenths / 10) | 0;
+      const whole = Math.floor(tenths / 10);
       this.doseEl.textContent = `${whole},${tenths - whole * 10} mSv/t`;
     }
   }

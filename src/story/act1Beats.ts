@@ -140,6 +140,15 @@ export class Act1Beats {
     });
   }
 
+  /** Re-arm the non-flag transient state (story flags persist in GameState
+   *  and gate the beats themselves, so a fresh scene never replays them). */
+  reset(): void {
+    this.introDelay = 1.5;
+    this.lockTime = 0;
+    this.promptShown = false;
+    this.triggers.reset();
+  }
+
   /** Per frame from the scene. insideFlat comes from the exposure zone. */
   update(
     dt: number,
@@ -185,7 +194,10 @@ export class Act1Beats {
       }
     }
 
-    // Beat 3a — first time out on the street after the signal beat began.
+    // Beat 3a — first time out on the street (after the intro). Deliberately
+    // does NOT wait on the signal beat: a player who steps out before tuning
+    // in still gets the "stay close / don't touch the ash" line. A later
+    // signal lock (beat 2) may preempt it via the dialogue runner — fine.
     if (!state.hasFlag(FLAG_STREET) && state.hasFlag(FLAG_INTRO) && !insideFlat && x < 10) {
       state.setFlag(FLAG_STREET);
       if (!dialogue.active) dialogue.play(LINES_STREET);
